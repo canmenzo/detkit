@@ -1,0 +1,28 @@
+name: entra-azure-monitor-tables
+# Must run BEFORE the vendor azure_monitor pipeline (priority 10): that pipeline
+# resolves the target table early and aborts if it cannot, and it only knows the
+# Windows categories. Setting the table here is what lets an Entra rule compile
+# at all — and once the table is known, the backend validates every field name
+# against that table's real schema and refuses an unknown column. That check is
+# this tier's substitute for the EVTX proof the Windows rules get: no public
+# capture of Entra sign-in telemetry exists to test against, but a rule that
+# names a column Microsoft does not publish cannot leave the build.
+priority: 5
+transformations:
+  - id: entra_signinlogs_table
+    type: set_state
+    key: query_table
+    val: SigninLogs
+    rule_conditions:
+      - type: logsource
+        product: azure
+        service: signinlogs
+
+  - id: entra_auditlogs_table
+    type: set_state
+    key: query_table
+    val: AuditLogs
+    rule_conditions:
+      - type: logsource
+        product: azure
+        service: auditlogs

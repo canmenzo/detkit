@@ -18,9 +18,6 @@ from sigma.collection import SigmaCollection
 TABLE = "events"
 INDEX_COLUMN = "__case_index__"
 
-# Windows carries UInt64 keyword masks that overflow SQLite's signed INTEGER.
-SQLITE_INT_MAX = 2**63 - 1
-
 
 class EvaluationError(Exception):
     """A rule could not be evaluated."""
@@ -69,25 +66,32 @@ def compile_rule(rule_path: Path) -> tuple[str, set[str]]:
 
 
 def normalise(value: Any) -> Any:
-    """Coerce an event value to what SQLite can compare against rule literals.
+    """Render an event value as text, so comparison is loose in both directions.
 
-    EVTX EventData is string-typed, so PreAuthType arrives as "0" while the rule
-    (and SigmaHQ's own) says 0. Hayabusa compares loosely; SQLite does not, and
-    without this the AS-REP rule silently stops matching. ADR 0003 records that
-    this makes the evaluator as lenient as Hayabusa, and more lenient than a
-    strictly-typed backend.
+    Every value is stored as text and every column is declared TEXT, which makes
+    SQLite apply TEXT affinity to the rule's literal before comparing. A rule
+    written `EventID: 4697` therefore matches the string "4697" that EVTX
+    EventData actually carries, and a rule written `ResultType: '0'` matches the
+    string "0" that Entra ID carries — without either side having to lie about
+    its type.
+
+    The earlier version coerced numeric-looking *strings* to integers instead.
+    That fixed the EVTX direction (PreAuthType "0" vs a rule saying 0) and broke
+    the other one: Entra ID's ResultType is a string column, so a correctly
+    string-typed rule stopped matching its own data while Sentinel would have
+    matched it. One-sided leniency is worse than none, because it disagrees with
+    the platform the query is destined for. ADR 0003 records the semantics.
+
+    UInt64 Windows keyword masks come along for free: as text they no longer
+    overflow SQLite's signed INTEGER.
     """
+    if value is None:
+        return None
     if isinstance(value, (dict, list)):
         return json.dumps(value)
     if isinstance(value, bool):
-        return int(value)
-    if isinstance(value, int) and abs(value) > SQLITE_INT_MAX:
-        return str(value)
-    if isinstance(value, str):
-        stripped = value.strip()
-        if stripped.lstrip("-").isdigit():
-            return int(stripped)
-    return value
+        return "true" if value else "false"
+    return str(value)
 
 
 def _regexp(pattern: str | None, value: Any) -> bool:
@@ -111,8 +115,13 @@ def matching_indices(query: str, fields: set[str], events: list[dict[str, Any]])
     conn = sqlite3.connect(":memory:")
     conn.create_function("regexp", 2, _regexp, deterministic=True)
     try:
-        quoted = ", ".join(f'"{c}"' for c in [INDEX_COLUMN, *columns])
-        conn.execute(f"CREATE TABLE {TABLE} ({quoted})")
+        # TEXT affinity on every column is what makes the comparison loose; see
+        # normalise(). The index column stays affinity-free so it comes back as
+        # the int it went in as.
+        declared = ", ".join(
+            [f'"{INDEX_COLUMN}"'] + [f'"{c}" TEXT' for c in columns]
+        )
+        conn.execute(f"CREATE TABLE {TABLE} ({declared})")
         placeholders = ", ".join("?" * (len(columns) + 1))
         conn.executemany(
             f"INSERT INTO {TABLE} VALUES ({placeholders})",

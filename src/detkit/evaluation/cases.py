@@ -75,9 +75,19 @@ class CaseSet:
         return [c.event for c in self.cases]
 
 
+# What identifies "the same kind of event", per telemetry domain. Windows numbers
+# its events; Entra ID names the operation instead. Without a domain-appropriate
+# key every cloud event would compare equal (all None), and the look-alike
+# guarantee below would quietly stop guaranteeing anything.
+KIND_FIELDS = ("EventID", "OperationName", "Category")
+
+
 def _discriminator(event: dict[str, Any]) -> Any:
     """What makes two events "the same kind of event"."""
-    return event.get("EventID")
+    for field in KIND_FIELDS:
+        if field in event:
+            return (field, event[field])
+    return None
 
 
 def load_case_set(path: Path) -> CaseSet:
@@ -158,6 +168,15 @@ def _thresholds(path: Path, raw: object) -> Thresholds:
 
 
 def _validate(case_set: CaseSet) -> None:
+    unidentifiable = [c.name for c in case_set.cases if _discriminator(c.event) is None]
+    if unidentifiable:
+        raise CaseError(
+            f"{case_set.path}: case(s) {unidentifiable} carry none of "
+            f"{list(KIND_FIELDS)}, so the benign look-alike check cannot tell what "
+            f"kind of event they are. Include the field the telemetry identifies "
+            f"the event with."
+        )
+
     if not case_set.malicious:
         raise CaseError(f"{case_set.path}: no malicious cases — recall is undefined")
     if not case_set.benign:
@@ -171,7 +190,7 @@ def _validate(case_set: CaseSet) -> None:
     for case in case_set.benign:
         if _discriminator(case.event) not in malicious_kinds:
             raise CaseError(
-                f"{case_set.path}: benign case {case.name!r} is EventID "
+                f"{case_set.path}: benign case {case.name!r} is "
                 f"{_discriminator(case.event)!r}, which no malicious case uses. "
                 f"A benign event of a different type cannot exercise the rule's logic."
             )

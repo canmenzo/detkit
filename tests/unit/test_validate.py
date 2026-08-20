@@ -115,3 +115,33 @@ def test_multiline_condition_fails_the_gate(tmp_path: Path) -> None:
 )
 def test_has_technique_tag(tags: Any, expected: bool) -> None:
     assert has_technique_tag(tags) is expected
+
+
+CLOUD = COMPLETE.replace("product: windows", "product: azure\n  service: signinlogs")
+
+
+def test_cloud_rule_needs_labelled_cases_not_an_evtx_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Telemetry with no public capture is measured instead, never neither."""
+    from detkit import validate as validate_mod
+
+    rule = _rule(tmp_path, CLOUD, stem="entra_x")
+    monkeypatch.setattr(validate_mod, "has_case_set", lambda _stem: False)
+    errors = validate_mod.check_evidence(rule, set())
+    assert errors and "no labelled eval cases" in errors[0]
+
+    monkeypatch.setattr(validate_mod, "has_case_set", lambda _stem: True)
+    assert validate_mod.check_evidence(rule, set()) == []
+
+
+def test_cloud_rule_may_not_claim_the_evtx_exemption(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """conversion_only.txt exempts a rule from a gate that never applied to it."""
+    from detkit import validate as validate_mod
+
+    rule = _rule(tmp_path, CLOUD, stem="entra_x")
+    monkeypatch.setattr(validate_mod, "has_case_set", lambda _stem: True)
+    errors = validate_mod.check_evidence(rule, {"entra_x"})
+    assert errors and "conversion_only.txt" in errors[0]

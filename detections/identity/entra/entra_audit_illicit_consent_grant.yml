@@ -1,0 +1,53 @@
+title: Consent Granted to Entra ID Application Requesting High-Privilege Scopes
+id: 9e5a3c74-8b12-4d6f-a293-1c7b4e8d5f30
+status: experimental
+description: >
+  Detects consent being granted to an Entra ID application whose requested
+  delegated permissions include mailbox, file or directory-wide scopes. This is
+  the illicit consent grant: the victim is phished into approving an OAuth app,
+  and the attacker then reads mail and files with a token that no password reset
+  revokes and no MFA prompt challenges (T1528).
+
+  Consent events themselves are ordinary — every user consenting to Teams or a
+  third-party plugin generates one. The scope set is what separates them, so the
+  rule fires on the permissions being requested rather than on the act of
+  consenting, and the benign half of this rule's eval set is consent to ordinary
+  low-privilege scopes.
+references:
+  - https://attack.mitre.org/techniques/T1528/
+  - https://learn.microsoft.com/defender-cloud-apps/investigate-risky-oauth
+  - https://learn.microsoft.com/azure/azure-monitor/reference/tables/auditlogs
+author: Can Ozmen
+date: 2026-08-20
+modified: 2026-08-20
+tags:
+  - attack.credential-access
+  - attack.persistence
+  - attack.t1528
+logsource:
+  product: azure
+  service: auditlogs
+detection:
+  selection:
+    OperationName:
+      - 'Consent to application'
+      - 'Add delegated permission grant'
+    Result: 'success'
+  sensitive_scope:
+    AdditionalDetails|contains:
+      - 'Mail.Read'
+      - 'Mail.ReadWrite'
+      - 'Mail.Send'
+      - 'MailboxSettings.ReadWrite'
+      - 'Files.ReadWrite.All'
+      - 'Files.Read.All'
+      - 'Directory.ReadWrite.All'
+      - 'Application.ReadWrite.All'
+      - 'Sites.ReadWrite.All'
+      - 'User.ReadWrite.All'
+  condition: selection and sensitive_scope
+falsepositives:
+  - Legitimate mail or backup integrations being onboarded. These are rare,
+    deliberate and change-managed, so they should be allow-listed by application
+    object ID once approved rather than by suppressing the rule.
+level: high

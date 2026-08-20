@@ -40,7 +40,7 @@ jobs:
       - name: yamllint rules
         run: uv run yamllint detections/
       - name: sigma check
-        run: uv run sigma check --fail-on-issues detections/
+        run: uv run sigma check --fail-on-issues -c sigma-validation.yml detections/
       - name: metadata + fixture + ATT&CK tag discipline
         run: uv run detkit validate
 

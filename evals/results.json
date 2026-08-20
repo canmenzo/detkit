@@ -1,5 +1,76 @@
 {
   "rules": {
+    "entra_audit_app_credential_added": {
+      "tp": 3,
+      "fp": 2,
+      "fn": 0,
+      "tn": 3,
+      "precision": 0.6,
+      "recall": 1.0,
+      "fp_rate": 0.4,
+      "missed": [],
+      "false_alarms": [
+        "terraform_service_principal_provisions_app",
+        "user_actor_with_serialised_app_branch"
+      ],
+      "thresholds": {
+        "min_precision": 0.55,
+        "min_recall": 1.0,
+        "max_fp_rate": 0.4
+      }
+    },
+    "entra_audit_illicit_consent_grant": {
+      "tp": 4,
+      "fp": 1,
+      "fn": 0,
+      "tn": 3,
+      "precision": 0.8,
+      "recall": 1.0,
+      "fp_rate": 0.25,
+      "missed": [],
+      "false_alarms": [
+        "sanctioned_backup_integration_onboarded"
+      ],
+      "thresholds": {
+        "min_precision": 0.75,
+        "min_recall": 1.0,
+        "max_fp_rate": 0.25
+      }
+    },
+    "entra_audit_privileged_role_assigned": {
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "tn": 4,
+      "precision": 1.0,
+      "recall": 1.0,
+      "fp_rate": 0.0,
+      "missed": [],
+      "false_alarms": [],
+      "thresholds": {
+        "min_precision": 0.9,
+        "min_recall": 1.0,
+        "max_fp_rate": 0.1
+      }
+    },
+    "entra_signin_legacy_auth_success": {
+      "tp": 4,
+      "fp": 1,
+      "fn": 0,
+      "tn": 4,
+      "precision": 0.8,
+      "recall": 1.0,
+      "fp_rate": 0.2,
+      "missed": [],
+      "false_alarms": [
+        "mfp_scanner_smtp_relay"
+      ],
+      "thresholds": {
+        "min_precision": 0.8,
+        "min_recall": 1.0,
+        "max_fp_rate": 0.2
+      }
+    },
     "posh_ps_defender_tamper": {
       "tp": 5,
       "fp": 2,

@@ -45,7 +45,25 @@
       "enabled": true
     },
     {
+      "techniqueID": "T1078.004",
+      "score": 1,
+      "comment": "1 detection",
+      "enabled": true
+    },
+    {
       "techniqueID": "T1098",
+      "score": 1,
+      "comment": "1 detection",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1098.001",
+      "score": 1,
+      "comment": "1 detection",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1098.003",
       "score": 1,
       "comment": "1 detection",
       "enabled": true
@@ -64,6 +82,12 @@
     },
     {
       "techniqueID": "T1140",
+      "score": 1,
+      "comment": "1 detection",
+      "enabled": true
+    },
+    {
+      "techniqueID": "T1528",
       "score": 1,
       "comment": "1 detection",
       "enabled": true

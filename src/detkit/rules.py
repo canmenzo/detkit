@@ -13,7 +13,7 @@ from typing import Any
 import yaml
 
 from detkit.attack import Tags, parse_tags
-from detkit.paths import CONVERSION_ONLY, FIXTURES
+from detkit.paths import CONVERSION_ONLY, EVALS, FIXTURES
 
 
 class RuleError(Exception):
@@ -53,6 +53,24 @@ def rule_paths(root: Path) -> list[Path]:
 
 def load_corpus(root: Path) -> list[Rule]:
     return [load_rule(path) for path in rule_paths(root)]
+
+
+# EVTX exists for Windows telemetry and nothing else. A cloud rule cannot be
+# proven against a captured event log because no public capture of Entra ID
+# sign-in data exists to capture — so those rules carry a different, declared
+# evidence tier (see docs/adr/0005). Keeping the distinction in one predicate
+# stops it being re-derived, differently, in each gate.
+EVTX_TESTABLE_PRODUCTS = {"windows"}
+
+
+def is_evtx_testable(rule: Rule) -> bool:
+    logsource = rule.doc.get("logsource") or {}
+    return logsource.get("product") in EVTX_TESTABLE_PRODUCTS
+
+
+def has_case_set(stem: str) -> bool:
+    """Whether a rule has a labelled eval case set."""
+    return (EVALS / stem / "cases.yml").is_file()
 
 
 def conversion_only() -> set[str]:

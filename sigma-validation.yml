@@ -1,0 +1,20 @@
+# Validation configuration for `sigma check`.
+#
+# Everything runs except where a validator's generic advice is wrong for the
+# platform a rule actually targets. Exclusions are per rule ID, never global: a
+# blanket "-x number_as_string" would also hide the next genuine instance.
+validators:
+  - all
+
+exclusions:
+  # entra_signin_legacy_auth_success — ResultType: '0'
+  #
+  # NumberAsStringIssue says a numeric value should not be quoted. In
+  # SigninLogs it must be: Microsoft publishes ResultType as a *string* column
+  # (it holds 5-6 digit error codes, and "0" is the success sentinel). Written
+  # unquoted the rule compiles to `ResultType == 0`, which KQL refuses against a
+  # string column — a rule that lints clean and cannot run. The schema is
+  # checked at conversion time, so this one is decided by the platform, not by
+  # the linter's default.
+  3f2c6d18-9a47-4e51-b0c8-2d7e5a91f6b3:
+    - number_as_string

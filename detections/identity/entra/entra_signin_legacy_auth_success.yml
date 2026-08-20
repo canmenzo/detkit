@@ -1,0 +1,49 @@
+title: Successful Entra ID Sign-In Over Legacy Authentication
+id: 3f2c6d18-9a47-4e51-b0c8-2d7e5a91f6b3
+status: experimental
+description: >
+  Detects a successful interactive Entra ID sign-in that used a legacy
+  authentication protocol — IMAP, POP3, SMTP, MAPI, Exchange ActiveSync or the
+  catch-all "Other clients". Legacy protocols cannot perform modern
+  authentication, so they cannot honour multi-factor authentication or most
+  Conditional Access policies. Password-spraying campaigns target them for
+  exactly that reason: a valid credential is enough.
+
+  The rule requires ResultType 0 (success). A failed legacy attempt is noise from
+  every scanner on the internet; a successful one means an MFA-capable identity
+  was authenticated without MFA.
+references:
+  - https://attack.mitre.org/techniques/T1078/004/
+  - https://learn.microsoft.com/entra/identity/conditional-access/block-legacy-authentication
+  - https://learn.microsoft.com/azure/azure-monitor/reference/tables/signinlogs
+author: Can Ozmen
+date: 2026-08-20
+modified: 2026-08-20
+tags:
+  - attack.initial-access
+  - attack.persistence
+  - attack.stealth
+  - attack.t1078.004
+logsource:
+  product: azure
+  service: signinlogs
+detection:
+  selection:
+    ResultType: '0'
+    ClientAppUsed:
+      - 'IMAP4'
+      - 'POP3'
+      - 'SMTP'
+      - 'MAPI Over HTTP'
+      - 'Exchange ActiveSync'
+      - 'Exchange Web Services'
+      - 'Authenticated SMTP'
+      - 'Other clients'
+  condition: selection
+falsepositives:
+  - Line-of-business applications and multifunction printers that authenticate
+    over SMTP with a service account. Baseline them by UserPrincipalName and
+    exclude the known set rather than the protocol.
+  - Estates still migrating off legacy clients. In that case this rule is a
+    migration tracker before it is an alert.
+level: medium

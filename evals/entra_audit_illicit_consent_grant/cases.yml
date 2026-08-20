@@ -1,0 +1,118 @@
+description: >
+  Consent granted to an Entra ID application (AuditLogs). The rule requires a
+  successful consent operation AND at least one high-privilege scope in the
+  granted permission set.
+
+  The benign half is ordinary consent traffic: users approving apps that ask for
+  User.Read or openid, which is most of what this operation ever records. A rule
+  that alerted on the operation alone would fire on all of it, and the one grant
+  that mattered would arrive in the same queue as a thousand that did not.
+thresholds:
+  min_precision: 0.75
+  max_fp_rate: 0.25
+  justification: >-
+    One benign case is an approved mail-integration onboarding, which requests
+    exactly the scopes an attacker's app requests. Nothing in the event separates
+    a sanctioned Mail.Read grant from a phished one — that needs the application
+    object ID checked against an approved list, which is enrichment the rule
+    cannot perform on its own.
+
+cases:
+  - name: user_consents_to_mail_read_app
+    label: malicious
+    why: classic illicit consent grant — a phished user approves an app that can read their entire mailbox
+    event:
+      OperationName: Consent to application
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"finance.director@contoso.com"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Secure Doc Viewer"}]'
+      AdditionalDetails: '[{"key":"ConsentContext.IsAdminConsent","value":"False"},{"key":"ConsentAction.Permissions","value":"Scope: Mail.Read offline_access User.Read"}]'
+
+  - name: admin_consent_for_all_principals
+    label: malicious
+    why: >-
+      Tenant-wide admin consent granting Mail.ReadWrite and Files.ReadWrite.All to
+      a third-party app. One approval, every mailbox and every file.
+    event:
+      OperationName: Consent to application
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"compromised.admin@contoso.com"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Contoso Productivity Add-in"}]'
+      AdditionalDetails: '[{"key":"ConsentContext.IsAdminConsent","value":"True"},{"key":"ConsentAction.Permissions","value":"Scope: Mail.ReadWrite Files.ReadWrite.All offline_access"}]'
+
+  - name: delegated_grant_directory_readwrite
+    label: malicious
+    why: Directory.ReadWrite.All lets the app create users and reset credentials — full persistence
+    event:
+      OperationName: Add delegated permission grant
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"app":{"appId":"b4f6c2a1-9e33-4d18-88b7-0c5a3e7f1d92","displayName":"Reporting Connector"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Reporting Connector"}]'
+      AdditionalDetails: '[{"key":"ConsentAction.Permissions","value":"Scope: Directory.ReadWrite.All Application.ReadWrite.All"}]'
+
+  - name: mail_send_grant_for_phishing_relay
+    label: malicious
+    why: Mail.Send on a consented app turns a compromised identity into an internal phishing relay
+    event:
+      OperationName: Consent to application
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"sales.lead@contoso.com"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Quote Generator"}]'
+      AdditionalDetails: '[{"key":"ConsentContext.IsAdminConsent","value":"False"},{"key":"ConsentAction.Permissions","value":"Scope: Mail.Send User.Read"}]'
+
+  - name: user_consents_to_profile_read_only
+    label: benign
+    why: >-
+      The overwhelmingly common case: an app asking only who you are. If this
+      alerted, the rule would be unusable within a day.
+    event:
+      OperationName: Consent to application
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"new.analyst@contoso.com"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Team Survey Tool"}]'
+      AdditionalDetails: '[{"key":"ConsentContext.IsAdminConsent","value":"False"},{"key":"ConsentAction.Permissions","value":"Scope: User.Read openid profile email"}]'
+
+  - name: admin_consent_to_first_party_teams_app
+    label: benign
+    why: admin consent to a Microsoft first-party app requesting presence and channel scopes only
+    event:
+      OperationName: Consent to application
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"identity.admin@contoso.com"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Microsoft Teams"}]'
+      AdditionalDetails: '[{"key":"ConsentContext.IsAdminConsent","value":"True"},{"key":"ConsentAction.Permissions","value":"Scope: Presence.Read.All Channel.ReadBasic.All"}]'
+
+  - name: failed_consent_blocked_by_policy
+    label: benign
+    why: >-
+      User consent for a Mail.Read app was blocked by the tenant's consent policy.
+      The control worked; the scopes were never granted. The rule requires
+      success, and this case proves that requirement is load-bearing.
+    event:
+      OperationName: Consent to application
+      Category: ApplicationManagement
+      Result: failure
+      InitiatedBy: '{"user":{"userPrincipalName":"ap.clerk@contoso.com"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Invoice Reader"}]'
+      AdditionalDetails: '[{"key":"ConsentContext.IsAdminConsent","value":"False"},{"key":"ConsentAction.Permissions","value":"Scope: Mail.Read offline_access"}]'
+
+  - name: sanctioned_backup_integration_onboarded
+    label: benign
+    why: >-
+      An approved backup vendor being onboarded with Mail.Read and Files.Read.All.
+      Identical to the attack at the event level; separating them needs the app's
+      object ID checked against the approved list, which the rule cannot do.
+      Declared as a known false positive.
+    event:
+      OperationName: Consent to application
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"cloud.ops@contoso.com"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Veeam M365 Backup"}]'
+      AdditionalDetails: '[{"key":"ConsentContext.IsAdminConsent","value":"True"},{"key":"ConsentAction.Permissions","value":"Scope: Mail.Read Files.Read.All offline_access"}]'

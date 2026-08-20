@@ -41,3 +41,15 @@ def test_empty_output_has_no_queries() -> None:
     assert queries("") == []
     assert queries("\n\n  \n") == []
     assert unbound("") == []
+
+
+def test_untabled_flags_a_query_that_does_not_open_with_a_known_table() -> None:
+    """The Kusto equivalent of an unbound Splunk search."""
+    from detkit.convert import untabled
+
+    text = (
+        "SigninLogs\n| where ResultType =~ \"0\"\n\n"
+        "search *\n| where OperationName =~ \"x\"\n\n"
+        "AuditLogs\n| where Result =~ \"success\"\n"
+    )
+    assert untabled(text, ("SigninLogs", "AuditLogs")) == ["search *"]

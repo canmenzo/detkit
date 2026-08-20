@@ -59,7 +59,7 @@ pinned in `.hayabusa-version` and read by CI — bump it there, nowhere else.
 meaning to; set `UV_PROJECT_ENVIRONMENT` to a scratch path to test the lock.
 
 ## Status
-15 authored detections. **119 tests.** Every rule is scored against labelled
+19 authored detections (15 Windows + 4 Entra ID). **125 tests.** Every rule is scored against labelled
 events (122 of them) for precision/recall/FP rate, with per-rule thresholds that
 gate CI. `sigma check --fail-on-issues` passes at **0 issues**. All 15 rules
 convert to source-bound Splunk searches; the process_creation subset also
@@ -119,6 +119,45 @@ drift-checked in CI.
 - **No accuracy metric anywhere, on purpose.** `(TP+TN)/total` is dominated by
   the authored malicious:benign ratio. Both the tooltip and the about page say so
   explicitly — don't "helpfully" add it.
+
+## Evidence tiers — a rule is proven by what its telemetry can support
+Added 2026-08-20 with the Entra ID tier. **`logsource.product` decides the tier**
+(`rules.is_evtx_testable`), and each is enforced separately:
+
+- **Windows tier:** pinned public EVTX replayed through Hayabusa + labelled
+  scoring. Unchanged.
+- **Cloud tier (Entra ID, and anything else with no public captures):** labelled
+  scoring is **mandatory** (`detkit validate` fails a non-EVTX rule with no
+  `evals/<stem>/cases.yml`, and `test_harness_integrity` asserts it independently),
+  plus **compile-time schema validation** — `detkit convert` compiles them through
+  `pipelines/azure_monitor_entra.yml` + vendor `azure_monitor`, binding each rule
+  to its real table (`SigninLogs`/`AuditLogs`); the backend then rejects any
+  column Microsoft does not publish. Dashboard badges these `schema-verified`,
+  never `tested`. **Do not blur that distinction** — ADR 0005 is the argument.
+- A cloud rule listed in `conversion_only.txt` is an ERROR: that file exempts from
+  a gate which never applied to it.
+- **The repo pipeline must have priority < 10** (it is 5): the vendor
+  `azure_monitor` pipeline resolves the target table early and aborts if it
+  cannot, so setting `query_table` afterwards is too late.
+- **Splunk conversion is scoped to `detections/windows/`.** `splunk_windows` has
+  no notion of Entra ID and would emit index-wide searches for cloud rules — the
+  exact failure the binding gate exists to catch.
+
+## The evaluator compares as TEXT, in both directions (2026-08-20)
+`normalise()` used to coerce numeric-looking strings in the DATA to ints. That
+worked for EVTX (`PreAuthType "0"` vs a rule saying `0`) and **broke the reverse**:
+`SigninLogs.ResultType` is a *string* column, so a correctly written
+`ResultType: '0'` stopped matching its own labelled events while Sentinel would
+have matched them. Now every value is stored as text in `TEXT` columns, so SQLite
+applies text affinity to the rule literal and both directions match. All 15
+Windows rules produced identical metrics before/after. **Never write a Sigma value
+as an int just to make the evaluator match** — write what the platform's schema
+says and let the affinity do the work. Numeric comparison modifiers (`|gt`, `|lt`,
+…) would compare as text; none exist in the corpus, and one needs a decision first.
+
+`sigma check` flags `ResultType: '0'` as NumberAsString. It is wrong here, so the
+rule is excluded **by rule ID** in `sigma-validation.yml` (passed via `-c`), never
+with a blanket `-x`.
 
 ## Phase 1 hardening — what changed and why
 - **The suite could not fail.** No Hayabusa → all tests skipped → `pytest` exit 0.

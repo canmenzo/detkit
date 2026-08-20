@@ -33,19 +33,33 @@ def test_absent_field_does_not_raise() -> None:
     assert matching_indices(query, {"ScriptBlockText"}, events) == set()
 
 
-def test_numeric_strings_are_coerced() -> None:
-    """EVTX gives "0"; the rule says 0. Without coercion AS-REP stops matching."""
+def test_int_typed_rule_literal_matches_string_data() -> None:
+    """EVTX gives "0"; the rule says 0. Without loose comparison AS-REP stops matching."""
     events = [{"EventID": 4768, "PreAuthType": "0"}]
     query = "SELECT * FROM <TABLE_NAME> WHERE EventID=4768 AND PreAuthType=0"
     assert matching_indices(query, {"EventID", "PreAuthType"}, events) == {0}
 
 
-def test_hex_strings_are_not_coerced() -> None:
-    """0x17 must stay a string or the encryption-type comparisons break."""
+def test_values_are_stored_as_text() -> None:
+    """Text storage + TEXT columns is what makes comparison loose both ways."""
     assert normalise("0x17") == "0x17"
-    assert normalise("0") == 0
-    assert normalise("-12") == -12
+    assert normalise("0") == "0"
+    assert normalise(4688) == "4688"
+    assert normalise(True) == "true"
     assert normalise("admin ") == "admin "
+    assert normalise(None) is None
+
+
+def test_string_typed_rule_literal_matches_string_data() -> None:
+    """The other direction, which the old int coercion broke.
+
+    Entra ID's ResultType is a string column, so the rule is correctly written
+    `ResultType: '0'`. Coercing the event's "0" to an integer made it stop
+    matching its own data while Sentinel would have matched it.
+    """
+    events = [{"OperationName": "Sign-in activity", "ResultType": "0"}]
+    query = "SELECT * FROM <TABLE_NAME> WHERE ResultType='0'"
+    assert matching_indices(query, {"ResultType"}, events) == {0}
 
 
 def test_uint64_keyword_mask_does_not_overflow() -> None:
@@ -187,3 +201,19 @@ def test_breaches_ignores_undefined_metrics() -> None:
     """A rule that never fires has no precision; that is not a threshold breach."""
     metrics = Metrics(tp=0, fp=0, fn=0, tn=3)
     assert breaches(metrics, Thresholds(min_recall=0.0)) == []
+
+
+def test_case_kind_falls_back_to_the_field_the_telemetry_uses() -> None:
+    """Windows numbers its events; Entra ID names the operation.
+
+    Without a domain-appropriate key every cloud event would compare equal (all
+    None) and the benign look-alike check would quietly stop guaranteeing
+    anything.
+    """
+    from detkit.evaluation.cases import _discriminator
+
+    assert _discriminator({"EventID": 4697}) == ("EventID", 4697)
+    assert _discriminator({"OperationName": "Add member to role"}) == (
+        "OperationName", "Add member to role"
+    )
+    assert _discriminator({"UserPrincipalName": "a@b.c"}) is None

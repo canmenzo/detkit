@@ -1,0 +1,112 @@
+description: >
+  Credentials added to an Entra ID application or service principal (AuditLogs).
+  The rule requires a credential-management operation that succeeded AND an
+  initiator that is an application rather than a person.
+
+  The benign half is deliberately hostile to the rule: administrators add secrets
+  legitimately every week, and one case reproduces the JSON shape where both
+  initiator branches are serialised, which the text match cannot separate. That
+  case is expected to be a false positive and is written down as one — the rule's
+  description carries the same limit.
+thresholds:
+  min_precision: 0.55
+  max_fp_rate: 0.4
+  justification: >-
+    Two benign cases are unwinnable at the Sigma level. One is a provisioning
+    service principal doing legitimately what an attacker does maliciously, which
+    is an allow-list problem. The other is the InitiatedBy serialisation shape
+    described in the rule: separating it needs `tostring(InitiatedBy.app.appId)`,
+    which is platform syntax Sigma cannot express portably. Both are measured
+    here rather than assumed away.
+
+cases:
+  - name: consented_app_adds_own_secret
+    label: malicious
+    why: an application adding a client secret to itself — persistence that survives password resets and MFA
+    event:
+      OperationName: Add service principal credentials
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"app":{"appId":"b4f6c2a1-9e33-4d18-88b7-0c5a3e7f1d92","displayName":"Reporting Connector"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Reporting Connector","modifiedProperties":[{"displayName":"KeyDescription","newValue":"[KeyIdentifier=8f31,KeyType=Password,KeyUsage=Verify]"}]}]'
+
+  - name: app_adds_certificate_to_another_app
+    label: malicious
+    why: one application attaching a certificate to a second application — lateral movement between service principals
+    event:
+      OperationName: Update application - Certificates and secrets management
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"app":{"appId":"b4f6c2a1-9e33-4d18-88b7-0c5a3e7f1d92","displayName":"Reporting Connector"}}'
+      TargetResources: '[{"type":"Application","displayName":"Finance Data Sync","modifiedProperties":[{"displayName":"KeyDescription","newValue":"[KeyType=AsymmetricX509Cert,KeyUsage=Verify]"}]}]'
+
+  - name: app_adds_secret_to_privileged_app
+    label: malicious
+    why: credential added to an application holding Directory.ReadWrite.All, by another application
+    event:
+      OperationName: Add service principal credentials
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"app":{"appId":"0e1d7c44-52a6-4b39-9f7d-3a8e6c2b5104","displayName":"Tenant Automation"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Directory Sync Agent","modifiedProperties":[{"displayName":"KeyDescription","newValue":"[KeyType=Password,KeyUsage=Verify]"}]}]'
+
+  - name: admin_rotates_app_secret
+    label: benign
+    why: >-
+      A named administrator rotating an expiring client secret. This is the single
+      most common way this operation appears in a real tenant, and it must not
+      alert or the rule is unusable.
+    event:
+      OperationName: Update application - Certificates and secrets management
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"user":{"id":"7c2e9a41-8b6d-4f13-a5c9-2e7d4b1f8306","userPrincipalName":"identity.admin@contoso.com"}}'
+      TargetResources: '[{"type":"Application","displayName":"HR Portal","modifiedProperties":[{"displayName":"KeyDescription","newValue":"[KeyType=Password,KeyUsage=Verify]"}]}]'
+
+  - name: admin_onboards_new_integration
+    label: benign
+    why: administrator creating the first credential for a newly approved integration
+    event:
+      OperationName: Add service principal credentials
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"user":{"id":"91c4d7e2-3f58-4a6b-8d10-5c9e2a7b4f63","userPrincipalName":"cloud.ops@contoso.com"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Backup Connector","modifiedProperties":[{"displayName":"KeyDescription","newValue":"[KeyType=Password,KeyUsage=Verify]"}]}]'
+
+  - name: failed_credential_add
+    label: benign
+    why: the operation failed, so no usable credential exists — the rule requires success
+    event:
+      OperationName: Add service principal credentials
+      Category: ApplicationManagement
+      Result: failure
+      InitiatedBy: '{"app":{"appId":"b4f6c2a1-9e33-4d18-88b7-0c5a3e7f1d92","displayName":"Reporting Connector"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Reporting Connector"}]'
+
+  - name: terraform_service_principal_provisions_app
+    label: benign
+    why: >-
+      The infrastructure-as-code identity creating an app registration and its
+      secret, which is exactly the attacker's shape performed legitimately. A
+      known false positive: the fix is to allow-list this appId, not to weaken
+      the rule.
+    event:
+      OperationName: Add service principal credentials
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"app":{"appId":"2f7b8d31-6c94-4e50-a1f8-9d3c5b7e2064","displayName":"terraform-platform-cicd"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"payments-api-staging","modifiedProperties":[{"displayName":"KeyDescription","newValue":"[KeyType=Password,KeyUsage=Verify]"}]}]'
+
+  - name: user_actor_with_serialised_app_branch
+    label: benign
+    why: >-
+      A user-initiated change where the tenant serialises both initiator branches,
+      leaving an empty app object on the record. The text match cannot tell this
+      from an app-initiated change. Declared as a false positive in the rule's
+      description rather than discovered later in production.
+    event:
+      OperationName: Update application - Certificates and secrets management
+      Category: ApplicationManagement
+      Result: success
+      InitiatedBy: '{"user":{"id":"7c2e9a41-8b6d-4f13-a5c9-2e7d4b1f8306","userPrincipalName":"identity.admin@contoso.com"},"app":{"appId":null,"displayName":null}}'
+      TargetResources: '[{"type":"Application","displayName":"Expenses Tool","modifiedProperties":[{"displayName":"KeyDescription","newValue":"[KeyType=Password,KeyUsage=Verify]"}]}]'

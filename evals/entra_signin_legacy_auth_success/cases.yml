@@ -1,0 +1,144 @@
+description: >
+  Successful Entra ID sign-in over a legacy authentication protocol (SigninLogs).
+  The rule requires ResultType 0 AND a ClientAppUsed value from the legacy set.
+
+  The benign half is where this rule earns its keep: the same table carries
+  millions of successful modern-auth sign-ins, and failed legacy attempts arrive
+  constantly from password-spraying infrastructure. Neither should alert — the
+  first is normal business, the second is background noise that proves nothing
+  about the account.
+thresholds:
+  min_precision: 0.8
+  max_fp_rate: 0.2
+  justification: >-
+    One benign case is deliberately unwinnable: a multifunction printer relaying
+    over Authenticated SMTP is indistinguishable from an attacker using the same
+    protocol with a stolen service-account password. That is an allow-list
+    problem, not a logic problem, and the rule says so in its falsepositives.
+
+cases:
+  - name: imap_success_after_spray
+    label: malicious
+    why: successful IMAP4 sign-in — a protocol that cannot enforce MFA, so a valid password was enough
+    event:
+      OperationName: Sign-in activity
+      Category: SignIn
+      ResultType: "0"
+      ClientAppUsed: IMAP4
+      UserPrincipalName: finance.director@contoso.com
+      IPAddress: 45.134.26.11
+      AppDisplayName: Office 365 Exchange Online
+      IsInteractive: false
+
+  - name: pop3_success_foreign_asn
+    label: malicious
+    why: POP3 sign-in succeeding for a user whose mailbox is normally accessed by modern auth only
+    event:
+      OperationName: Sign-in activity
+      Category: SignIn
+      ResultType: "0"
+      ClientAppUsed: POP3
+      UserPrincipalName: ap.clerk@contoso.com
+      IPAddress: 193.27.14.90
+      AppDisplayName: Office 365 Exchange Online
+      IsInteractive: false
+
+  - name: other_clients_success
+    label: malicious
+    why: >-
+      "Other clients" is the catch-all Entra ID reports for legacy stacks it cannot
+      identify. A success here means an MFA-capable identity authenticated with a
+      password and nothing else.
+    event:
+      OperationName: Sign-in activity
+      Category: SignIn
+      ResultType: "0"
+      ClientAppUsed: Other clients
+      UserPrincipalName: helpdesk.admin@contoso.com
+      IPAddress: 102.89.44.7
+      AppDisplayName: Office 365 Exchange Online
+      IsInteractive: false
+
+  - name: activesync_success_unknown_device
+    label: malicious
+    why: Exchange ActiveSync success bypassing the Conditional Access policy that requires a compliant device
+    event:
+      OperationName: Sign-in activity
+      Category: SignIn
+      ResultType: "0"
+      ClientAppUsed: Exchange ActiveSync
+      UserPrincipalName: sales.lead@contoso.com
+      IPAddress: 77.111.245.19
+      AppDisplayName: Office 365 Exchange Online
+      IsInteractive: false
+
+  - name: modern_auth_browser_success
+    label: benign
+    why: ordinary successful sign-in through the browser with modern authentication
+    event:
+      OperationName: Sign-in activity
+      Category: SignIn
+      ResultType: "0"
+      ClientAppUsed: Browser
+      UserPrincipalName: finance.director@contoso.com
+      IPAddress: 81.2.69.142
+      AppDisplayName: Office 365 Exchange Online
+      IsInteractive: true
+
+  - name: modern_auth_mobile_app_success
+    label: benign
+    why: Outlook mobile using modern auth — same user, same app, non-legacy client
+    event:
+      OperationName: Sign-in activity
+      Category: SignIn
+      ResultType: "0"
+      ClientAppUsed: Mobile Apps and Desktop clients
+      UserPrincipalName: ap.clerk@contoso.com
+      IPAddress: 81.2.69.144
+      AppDisplayName: Office 365 Exchange Online
+      IsInteractive: true
+
+  - name: legacy_imap_failed_password_spray
+    label: benign
+    why: >-
+      Failed IMAP4 attempt from spraying infrastructure. It is hostile traffic but
+      not a detection: every tenant sees thousands, and the account did not
+      authenticate. Alerting on it buries the one that succeeds.
+    event:
+      OperationName: Sign-in activity
+      Category: SignIn
+      ResultType: "50126"
+      ClientAppUsed: IMAP4
+      UserPrincipalName: no.such.user@contoso.com
+      IPAddress: 45.134.26.11
+      AppDisplayName: Office 365 Exchange Online
+      IsInteractive: false
+
+  - name: legacy_smtp_blocked_by_conditional_access
+    label: benign
+    why: legacy SMTP attempt correctly blocked by Conditional Access — the control worked, there is nothing to investigate
+    event:
+      OperationName: Sign-in activity
+      Category: SignIn
+      ResultType: "53003"
+      ClientAppUsed: Authenticated SMTP
+      UserPrincipalName: sales.lead@contoso.com
+      IPAddress: 102.89.44.7
+      AppDisplayName: Office 365 Exchange Online
+      IsInteractive: false
+
+  - name: mfp_scanner_smtp_relay
+    label: benign
+    why: >-
+      Known multifunction printer relaying scan-to-email over Authenticated SMTP
+      with a service account. Legitimate, and identical to the attack at the event
+      level — the rule cannot separate them and its falsepositives section says so.
+    event:
+      OperationName: Sign-in activity
+      Category: SignIn
+      ResultType: "0"
+      ClientAppUsed: Authenticated SMTP
+      UserPrincipalName: svc-mfp-scanner@contoso.com
+      IPAddress: 10.20.4.31
+      AppDisplayName: Office 365 Exchange Online
+      IsInteractive: false

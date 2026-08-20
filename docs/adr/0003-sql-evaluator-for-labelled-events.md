@@ -74,3 +74,23 @@ Three behaviours had to be defined explicitly, and each is a real decision:
 Writing our own matcher (option 2) remains viable if the SQLite backend is
 abandoned upstream. The cost of switching is bounded: the harness depends on
 "rule in, matching row IDs out", not on SQL.
+
+## Amendment, 2026-08-20 — comparison is text-based in both directions
+
+The original implementation coerced numeric-looking strings in the event data to
+integers, so that EVTX's string-typed `PreAuthType: "0"` matched a rule written
+`PreAuthType: 0`. Adding Entra ID rules showed that this leniency only worked one
+way: `SigninLogs.ResultType` is a string column, so the rule is correctly written
+`ResultType: '0'` — and the coercion turned the event's `"0"` into an integer,
+which no longer matched. The evaluator disagreed with the platform the query
+compiles to, in the direction that hides a working rule.
+
+Every value is now stored as text in columns declared `TEXT`, which makes SQLite
+apply text affinity to the rule's literal before comparing. Both directions match,
+the UInt64 keyword-mask special case disappears, and the leniency is symmetric and
+stated rather than incidental. All 15 Windows rules produced identical metrics
+before and after the change.
+
+One consequence to know about: numeric comparison modifiers (`|gt`, `|lt`, `|gte`,
+`|lte`) would compare as text under this scheme. No rule in the corpus uses one.
+A rule that needs one needs a typed column, and that needs a decision here first.

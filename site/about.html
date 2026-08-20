@@ -138,7 +138,7 @@
   for</b>, and <b>how much noise does it cost the analyst reading the queue</b>.</p>
   <p>Detection-as-Code is the answer software engineering already found: put the logic in git, make
   every change reviewable, and gate it on automated tests. This repo is a working implementation of
-  that idea over 15 rules I wrote myself, plus the tooling that keeps them honest.</p>
+  that idea over 19 rules I wrote myself, plus the tooling that keeps them honest.</p>
   <div class="box why">
     <h4>The claim being made</h4>
     <p style="margin:0">Not "I can write a Sigma rule." Anyone can. The claim is: every rule here is
@@ -234,7 +234,7 @@
     <tr><td>Test suite</td><td class="was">15 tests, all silently skippable</td>
         <td class="now">119 tests; a skipped detection test fails the build</td></tr>
     <tr><td>Rule quality</td><td class="was">unmeasured</td>
-        <td class="now">125 labelled events, every rule scored, thresholds enforced</td></tr>
+        <td class="now">158 labelled events, every rule scored, thresholds enforced</td></tr>
     <tr><td>Rules alerting on<br>100% of benign traffic</td><td class="was">4, unnoticed</td>
         <td class="now">2, both with a written justification</td></tr>
     <tr><td>Sigma linter</td><td class="was">20 problems, ignored</td>
@@ -242,7 +242,7 @@
     <tr><td>Python tooling</td><td class="was">no tests, no types, unlocked deps</td>
         <td class="now">packaged CLI, strict typing, locked and reproducible</td></tr>
     <tr><td>Compiled queries</td><td class="was">would not have run</td>
-        <td class="now">all 15 bound to a real source, checked in CI</td></tr>
+        <td class="now">all 19 bound to a real source, checked in CI</td></tr>
     <tr><td>Published numbers</td><td class="was">typed by hand</td>
         <td class="now">generated; the build fails if they go stale</td></tr>
   </table>
@@ -318,7 +318,7 @@
         <td>pySigma SQLite backend, over JSON events</td></tr>
     <tr><td><b>Data</b></td>
         <td>16 public captures pinned by URL and SHA-256</td>
-        <td>125 events hand-written and labelled, each with a stated reason</td></tr>
+        <td>158 events hand-written and labelled, each with a stated reason</td></tr>
     <tr><td><b>Catches</b></td>
         <td>Wrong channel, wrong field name, a rule that cannot run at all</td>
         <td>Logic too broad, logic too narrow, a rule that alerts on everything</td></tr>
@@ -326,12 +326,30 @@
         <td>A rule that fires on the sample <i>and</i> on everything else</td>
         <td>A rule matching a field Windows never actually emits</td></tr>
     <tr><td><b>Coverage</b></td>
-        <td>15 of 15 rules (0 declared exempt)</td>
-        <td>15 of 15 rules</td></tr>
+        <td>15 of 19 rules (0 declared exempt)</td>
+        <td>19 of 19 rules</td></tr>
   </table>
   <p>The two engines are also a cross-check on each other. Two independent implementations of Sigma
   semantics agreeing on the same rule is worth more than trusting either alone; where they
   disagreed during development, the disagreement was the bug.</p>
+
+  <h3>The cloud rules carry a third, weaker tier — and say so</h3>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>The Entra ID (Microsoft cloud identity) rules cannot get the first test. Nobody publishes
+    recordings of cloud sign-in logs, because those logs are real people's names, addresses and
+    devices — it is not a gap somebody forgot to fill, it is what privacy means for that data.</p>
+    <p>So those rules get the scoring, which is compulsory for them rather than optional, plus a
+    check that every field they mention actually exists in Microsoft's published table layout. A
+    rule that invents a column name cannot be built. What that still does not prove is that the
+    rule fires in a real tenant, and the dashboard labels them <b>schema-verified</b> instead of
+    <b>tested</b> so the difference is visible at a glance rather than buried here.</p>
+  </div>
+  <p>Concretely: <code>detkit validate</code> fails a non-EVTX rule with no case set, and
+  <code>detkit convert</code> compiles each Entra rule to its real Log Analytics table
+  (<code>SigninLogs</code>, <code>AuditLogs</code>) through the repo's own Azure Monitor pipeline,
+  where the backend rejects any column Microsoft does not publish. ADR 0005 has the argument and
+  the two rejected alternatives — not writing cloud rules at all, and writing them while quietly
+  letting the fixture gate not apply.</p>
 </section>
 
 <section id="metrics">
@@ -403,11 +421,18 @@
     written reason, the file is rejected. Every one of those reasons is printed below.</p>
   </div>
   <p>The defaults are strict — precision &ge; 0.90, recall = 1.00, FP rate &le; 0.10. Anything more
-  lenient is <b>rejected at load time unless it carries a written justification</b>. 12
-  of 15 rules currently run on a justified lenient threshold.</p>
+  lenient is <b>rejected at load time unless it carries a written justification</b>. 15
+  of 19 rules currently run on a justified lenient threshold.</p>
   <table>
     <tr><th>rule</th><th>precision</th><th>recall</th><th>FP rate</th><th>declared bar</th></tr>
-    <tr><td><code>posh_ps_defender_tamper</code></td><td class='num'>0.71</td><td class='num'>1.00</td><td class='num'>0.40</td><td class='bar'>p&ge;0.65 &middot; r&ge;1.00 &middot; fp&le;0.45</td></tr>
+    <tr><td><code>entra_audit_app_credential_added</code></td><td class='num'>0.60</td><td class='num'>1.00</td><td class='num'>0.40</td><td class='bar'>p&ge;0.55 &middot; r&ge;1.00 &middot; fp&le;0.40</td></tr>
+<tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> Two benign cases are unwinnable at the Sigma level. One is a provisioning service principal doing legitimately what an attacker does maliciously, which is an allow-list problem. The other is the InitiatedBy serialisation shape described in the rule: separating it needs `tostring(InitiatedBy.app.appId)`, which is platform syntax Sigma cannot express portably. Both are measured here rather than assumed away.</td></tr>
+<tr><td><code>entra_audit_illicit_consent_grant</code></td><td class='num'>0.80</td><td class='num'>1.00</td><td class='num'>0.25</td><td class='bar'>p&ge;0.75 &middot; r&ge;1.00 &middot; fp&le;0.25</td></tr>
+<tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> One benign case is an approved mail-integration onboarding, which requests exactly the scopes an attacker&#x27;s app requests. Nothing in the event separates a sanctioned Mail.Read grant from a phished one — that needs the application object ID checked against an approved list, which is enrichment the rule cannot perform on its own.</td></tr>
+<tr><td><code>entra_audit_privileged_role_assigned</code></td><td class='num'>1.00</td><td class='num'>1.00</td><td class='num'>0.00</td><td class='bar'>p&ge;0.90 &middot; r&ge;1.00 &middot; fp&le;0.10</td></tr>
+<tr><td><code>entra_signin_legacy_auth_success</code></td><td class='num'>0.80</td><td class='num'>1.00</td><td class='num'>0.20</td><td class='bar'>p&ge;0.80 &middot; r&ge;1.00 &middot; fp&le;0.20</td></tr>
+<tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> One benign case is deliberately unwinnable: a multifunction printer relaying over Authenticated SMTP is indistinguishable from an attacker using the same protocol with a stolen service-account password. That is an allow-list problem, not a logic problem, and the rule says so in its falsepositives.</td></tr>
+<tr><td><code>posh_ps_defender_tamper</code></td><td class='num'>0.71</td><td class='num'>1.00</td><td class='num'>0.40</td><td class='bar'>p&ge;0.65 &middot; r&ge;1.00 &middot; fp&le;0.45</td></tr>
 <tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> Sanctioned exclusion management is genuinely indistinguishable from an attacker carving out a staging directory when all you have is the 4104 event. Separating them needs the author identity and the excluded path checked against an approved list, which is enrichment the rule cannot do alone.</td></tr>
 <tr><td><code>posh_ps_susp_encoded_powershell_scriptblock</code></td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>0.67</td><td class='bar'>p&ge;0.45 &middot; r&ge;1.00 &middot; fp&le;0.70</td></tr>
 <tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> A token-frequency heuristic, not a detection. -join and [Convert]::ToInt are ordinary PowerShell, so two thirds of benign administrative script blocks fire. Demoted to informational and kept as a hunting query: useful for ranking script blocks by suspiciousness, unusable as a page. Tightening it means scoring multiple tokens together rather than matching any one of them.</td></tr>
@@ -485,14 +510,15 @@
   <ul class="spaced"><li><b>ADR 0001 — Hayabusa for detection testing</b><br><span class='muted'>Hayabusa is the EVTX test engine: one static binary that runs Sigma against real event logs, driven by pytest.</span></li>
 <li><b>ADR 0002 — Fetch pinned public EVTX samples instead of vendoring them</b><br><span class='muted'>Samples are not vendored. Each fixture pins public EVTX by repo, commit, path and SHA-256, and they are fetched and hash-verified at test time.</span></li>
 <li><b>ADR 0003 — Evaluate rules over labelled JSON events with the pySigma SQLite backend</b><br><span class='muted'>Labelled events are evaluated through pySigma's SQLite backend rather than a second log platform. Zircolite was the obvious candidate and was rejected: it is not on PyPI, so it could not be locked. Hayabusa stays as an independent second engine and the two must agree.</span></li>
-<li><b>ADR 0004 — Reproducibility without Terraform</b><br><span class='muted'>No Terraform. Terraform with no infrastructure behind it is a prop; reproducibility here means a clean checkout produces an identical verified run, which locked dependencies and a checksum-pinned engine already deliver.</span></li></ul>
+<li><b>ADR 0004 — Reproducibility without Terraform</b><br><span class='muted'>No Terraform. Terraform with no infrastructure behind it is a prop; reproducibility here means a clean checkout produces an identical verified run, which locked dependencies and a checksum-pinned engine already deliver.</span></li>
+<li><b>ADR 0005 — Evidence tiers: how a cloud rule is proven when no capture exists</b><br><span class='muted'>Cloud rules carry a declared, weaker evidence tier. Nobody publishes captures of Entra ID telemetry — it is real people's tenant data — so those rules cannot be replayed against a recording. Instead their labelled scoring is mandatory and every field is validated against Microsoft's published table schema at compile time. The dashboard badges them differently rather than letting the distinction blur.</span></li></ul>
   <h3>Other choices worth stating</h3>
   <ul class="spaced">
     <li><b>The third-party corpus is demoted, not deleted.</b> A pinned copy of the public SigmaHQ
     Windows corpus (2,399 rules, 100% convert rate) is run through the
-    same conversion pipeline and contributes 290 further techniques to the map — but
+    same conversion pipeline and contributes 289 further techniques to the map — but
     it is reported separately and held to none of the fixture or eval gates. Folding it into the
-    headline would turn 15 authored rules into a four-figure number that means nothing.
+    headline would turn 19 authored rules into a four-figure number that means nothing.
     The headline is deliberately the smaller, true number.</li>
     <li><b>Published artifacts are diffed, not trusted.</b> Every generated file is rebuilt in CI and
     compared to what is committed. There is no ratchet file and no manual metric anywhere: if a rule
@@ -516,7 +542,7 @@
       <li><b>The labelled events are synthetic.</b> They are written to be realistic look-alikes,
       but they are mine. They establish that a rule's logic discriminates; they cannot establish
       what its volume would be on a real estate.</li>
-      <li><b>Case sets are small.</b> 125 events across 15 rules. Enough to
+      <li><b>Case sets are small.</b> 158 events across 19 rules. Enough to
       catch a rule that matches an event ID and nothing else — not enough for a confidence
       interval.</li>
       <li><b>Some rules are irreducibly noisy, and stay.</b> Clearing the event log is one event
@@ -529,6 +555,10 @@
       column</b>, so the Kerberos rules cannot bind there without EventData parsing. KQL conversion
       therefore targets Microsoft XDR on the process-creation subset. That is a platform limit,
       documented rather than pretended away.</li>
+      <li><b>The cloud rules are not proven against a real tenant.</b> Entra ID telemetry has no
+      public captures, so those four rules carry the schema-verified tier described above: measured
+      logic and a validated query, but no replay. That is a real difference from the Windows rules
+      and it is labelled as one everywhere it appears.</li>
       <li><b>Deployment is a static site.</b> Nothing here provisions a SIEM. The rules compile to
       deployable, source-bound queries; actually running them in an estate is out of scope, and
       Terraform with nothing behind it would be set dressing.</li>
@@ -539,8 +569,9 @@
 <section id="repo">
   <h2><span class="n">11</span>Repo map</h2>
   <dl class="grid">
-    <dt><code>detections/</code></dt><dd>The 15 authored Sigma rules. Everything is gated on
-      these.</dd>
+    <dt><code>detections/</code></dt><dd>The 19 authored Sigma rules, split by telemetry:
+      <code>windows/</code> and <code>identity/entra/</code>. Everything is gated on these, though
+      not every rule can be gated the same way — see the evidence tiers above.</dd>
     <dt><code>evals/</code></dt><dd>Labelled events and declared thresholds, one directory per rule,
       plus the generated <code>results.json</code>.</dd>
     <dt><code>tests/</code></dt><dd>pytest: unit tests over the tooling, the Hayabusa harness, and

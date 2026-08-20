@@ -3,15 +3,24 @@
 Hard rules, any failure breaks CI:
   1. Every rule carries the full required Sigma frontmatter, including at least
      one ATT&CK technique tag (attack.tXXXX[.XXX]).
-  2. Every rule has a fixture manifest under tests/fixtures/<stem>/, or is
-     declared conversion-only.
+  2. Every Windows rule has a fixture manifest under tests/fixtures/<stem>/, or
+     is declared conversion-only. A rule whose telemetry has no public capture
+     (Entra ID, and any future cloud tier) carries a labelled eval case set
+     instead — a different evidence tier, declared rather than implied.
   3. Every attack.* tag resolves against the live ATT&CK release.
 """
 from __future__ import annotations
 
 from detkit.attack import TECHNIQUE_TAG_RE, Vocabulary, check_tags, vocabulary
 from detkit.paths import DETECTIONS, REPO
-from detkit.rules import Rule, conversion_only, load_corpus, sample_count
+from detkit.rules import (
+    Rule,
+    conversion_only,
+    has_case_set,
+    is_evtx_testable,
+    load_corpus,
+    sample_count,
+)
 
 REQUIRED_FIELDS = (
     "title", "id", "status", "description", "references", "author",
@@ -62,12 +71,37 @@ def validate_rule(rule: Rule, vocab: Vocabulary, exempt: set[str]) -> list[str]:
         errors.append("no ATT&CK technique tag (need at least one attack.tXXXX)")
     errors.extend(check_tags(tags, vocab))
 
+    errors.extend(check_evidence(rule, exempt))
+    return errors
+
+
+def check_evidence(rule: Rule, exempt: set[str]) -> list[str]:
+    """Every rule must carry the evidence its telemetry can actually produce."""
+    if not is_evtx_testable(rule):
+        # No public capture of this telemetry exists, so the EVTX gate cannot
+        # apply. What can apply is the scoring, and it is mandatory here rather
+        # than optional: without it the rule would carry no measurement at all.
+        problems = []
+        if not has_case_set(rule.stem):
+            problems.append(
+                f"no labelled eval cases: {rule.stem} is not EVTX-testable "
+                f"(logsource product is not windows), so evals/{rule.stem}/cases.yml "
+                f"is required — an untested and unmeasured rule is not shippable"
+            )
+        if rule.stem in exempt:
+            problems.append(
+                f"'{rule.stem}' is listed in tests/conversion_only.txt, which "
+                f"declares an exemption from the EVTX gate. That gate does not "
+                f"apply to this rule in the first place; remove the entry"
+            )
+        return problems
+
     if not has_fixture(rule.stem, exempt):
-        errors.append(
+        return [
             f"no test fixture: add tests/fixtures/{rule.stem}/sample_sources.yml "
             f"with >=1 pinned sample, or list '{rule.stem}' in tests/conversion_only.txt"
-        )
-    return errors
+        ]
+    return []
 
 
 def run() -> int:

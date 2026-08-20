@@ -78,6 +78,11 @@ ADR_SUMMARY: dict[str, str] = {
     "0004": "No Terraform. Terraform with no infrastructure behind it is a prop; reproducibility "
             "here means a clean checkout produces an identical verified run, which locked "
             "dependencies and a checksum-pinned engine already deliver.",
+    "0005": "Cloud rules carry a declared, weaker evidence tier. Nobody publishes captures of Entra "
+            "ID telemetry — it is real people's tenant data — so those rules cannot be replayed "
+            "against a recording. Instead their labelled scoring is mandatory and every field is "
+            "validated against Microsoft's published table schema at compile time. The dashboard "
+            "badges them differently rather than letting the distinction blur.",
 }
 
 
@@ -554,6 +559,24 @@ def render(data: dict[str, Any]) -> str:
   <p>The two engines are also a cross-check on each other. Two independent implementations of Sigma
   semantics agreeing on the same rule is worth more than trusting either alone; where they
   disagreed during development, the disagreement was the bug.</p>
+
+  <h3>The cloud rules carry a third, weaker tier — and say so</h3>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>The Entra ID (Microsoft cloud identity) rules cannot get the first test. Nobody publishes
+    recordings of cloud sign-in logs, because those logs are real people's names, addresses and
+    devices — it is not a gap somebody forgot to fill, it is what privacy means for that data.</p>
+    <p>So those rules get the scoring, which is compulsory for them rather than optional, plus a
+    check that every field they mention actually exists in Microsoft's published table layout. A
+    rule that invents a column name cannot be built. What that still does not prove is that the
+    rule fires in a real tenant, and the dashboard labels them <b>schema-verified</b> instead of
+    <b>tested</b> so the difference is visible at a glance rather than buried here.</p>
+  </div>
+  <p>Concretely: <code>detkit validate</code> fails a non-EVTX rule with no case set, and
+  <code>detkit convert</code> compiles each Entra rule to its real Log Analytics table
+  (<code>SigninLogs</code>, <code>AuditLogs</code>) through the repo's own Azure Monitor pipeline,
+  where the backend rejects any column Microsoft does not publish. ADR 0005 has the argument and
+  the two rejected alternatives — not writing cloud rules at all, and writing them while quietly
+  letting the fixture gate not apply.</p>
 </section>
 
 <section id="metrics">
@@ -709,6 +732,10 @@ def render(data: dict[str, Any]) -> str:
       column</b>, so the Kerberos rules cannot bind there without EventData parsing. KQL conversion
       therefore targets Microsoft XDR on the process-creation subset. That is a platform limit,
       documented rather than pretended away.</li>
+      <li><b>The cloud rules are not proven against a real tenant.</b> Entra ID telemetry has no
+      public captures, so those four rules carry the schema-verified tier described above: measured
+      logic and a validated query, but no replay. That is a real difference from the Windows rules
+      and it is labelled as one everywhere it appears.</li>
       <li><b>Deployment is a static site.</b> Nothing here provisions a SIEM. The rules compile to
       deployable, source-bound queries; actually running them in an estate is out of scope, and
       Terraform with nothing behind it would be set dressing.</li>
@@ -719,8 +746,9 @@ def render(data: dict[str, Any]) -> str:
 <section id="repo">
   <h2><span class="n">11</span>Repo map</h2>
   <dl class="grid">
-    <dt><code>detections/</code></dt><dd>The {n_rules} authored Sigma rules. Everything is gated on
-      these.</dd>
+    <dt><code>detections/</code></dt><dd>The {n_rules} authored Sigma rules, split by telemetry:
+      <code>windows/</code> and <code>identity/entra/</code>. Everything is gated on these, though
+      not every rule can be gated the same way — see the evidence tiers above.</dd>
     <dt><code>evals/</code></dt><dd>Labelled events and declared thresholds, one directory per rule,
       plus the generated <code>results.json</code>.</dd>
     <dt><code>tests/</code></dt><dd>pytest: unit tests over the tooling, the Hayabusa harness, and

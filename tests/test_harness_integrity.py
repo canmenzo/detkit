@@ -12,7 +12,7 @@ from __future__ import annotations
 import yaml
 
 from detkit.paths import DETECTIONS, FIXTURES
-from detkit.rules import conversion_only, rule_paths
+from detkit.rules import conversion_only, has_case_set, is_evtx_testable, load_corpus, rule_paths
 from test_detections import CASES
 
 
@@ -43,13 +43,32 @@ def test_collected_cases_match_declared_samples() -> None:
     )
 
 
-def test_every_rule_is_tested_or_declared_exempt() -> None:
-    """No rule may be silently untested."""
+def _evtx_stems() -> set[str]:
+    return {r.stem for r in load_corpus(DETECTIONS) if is_evtx_testable(r)}
+
+
+def test_every_evtx_rule_is_tested_or_declared_exempt() -> None:
+    """No Windows rule may be silently untested."""
     tested = {stem for stem, n in _declared_samples().items() if n > 0}
-    untested = _rule_stems() - tested - conversion_only()
+    untested = _evtx_stems() - tested - conversion_only()
     assert not untested, (
         f"rule(s) with no fixture and no conversion-only declaration: {sorted(untested)}"
     )
+
+
+def test_every_non_evtx_rule_carries_labelled_cases() -> None:
+    """Telemetry with no public capture is measured instead, never neither.
+
+    A cloud rule cannot be replayed against a recording, so the scoring is not
+    optional for it — it is the whole of its evidence, alongside the schema check
+    that conversion performs. Without this test, adding a rule for a new log
+    source would silently create the repo's first unverified detection.
+    """
+    unmeasured = {
+        r.stem for r in load_corpus(DETECTIONS)
+        if not is_evtx_testable(r) and not has_case_set(r.stem)
+    }
+    assert not unmeasured, f"non-EVTX rule(s) with no eval case set: {sorted(unmeasured)}"
 
 
 def test_no_orphan_fixture_manifests() -> None:

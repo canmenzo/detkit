@@ -1,0 +1,53 @@
+title: Entra ID Privileged Directory Role Assigned
+id: c4d8f1a7-2e63-4b95-8a17-6f9c3d5e2b48
+status: experimental
+description: >
+  Detects a principal being added to a highly privileged Entra ID directory role
+  — Global Administrator, Privileged Role Administrator, Privileged
+  Authentication Administrator, Application Administrator and the rest of the
+  tier-0 set. Role assignment is how an attacker converts a single compromised
+  identity into tenant-wide control, and it is the cloud equivalent of adding an
+  account to Domain Admins.
+
+  Role assignment as such is routine — helpdesk staff are added to Helpdesk
+  Administrator, analysts to Security Reader, every day. Alerting on
+  "Add member to role" alone would fire on all of it, so the rule keys on the
+  specific roles whose holders can grant themselves anything else.
+references:
+  - https://attack.mitre.org/techniques/T1098/003/
+  - https://learn.microsoft.com/entra/identity/role-based-access-control/privileged-roles-permissions
+  - https://learn.microsoft.com/azure/azure-monitor/reference/tables/auditlogs
+author: Can Ozmen
+date: 2026-08-20
+modified: 2026-08-20
+tags:
+  - attack.persistence
+  - attack.privilege-escalation
+  - attack.t1098.003
+logsource:
+  product: azure
+  service: auditlogs
+detection:
+  selection:
+    OperationName:
+      - 'Add member to role'
+      - 'Add eligible member to role'
+      - 'Add member to role completed (PIM activation)'
+    Result: 'success'
+  privileged_role:
+    TargetResources|contains:
+      - 'Global Administrator'
+      - 'Company Administrator'
+      - 'Privileged Role Administrator'
+      - 'Privileged Authentication Administrator'
+      - 'Application Administrator'
+      - 'Cloud Application Administrator'
+      - 'Hybrid Identity Administrator'
+      - 'Partner Tier2 Support'
+      - 'Domain Name Administrator'
+  condition: selection and privileged_role
+falsepositives:
+  - Scheduled break-glass account reviews and PIM activations by administrators
+    who are supposed to hold the role. Correlate with an approved change record;
+    the alert is still worth raising every time.
+level: high

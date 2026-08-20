@@ -1,0 +1,96 @@
+description: >
+  Assignment to an Entra ID directory role (AuditLogs). The rule requires a
+  successful role-assignment operation AND a role name from the tier-0 set.
+
+  The benign half is role assignment as it actually happens: helpdesk staff into
+  Helpdesk Administrator, analysts into Security Reader, users into Directory
+  Readers. Those are the events that would drown the alert if the rule keyed on
+  the operation alone — which is precisely what "Add member to role" does.
+cases:
+  - name: global_administrator_granted
+    label: malicious
+    why: Global Administrator is tenant-wide control; every assignment is worth an alert
+    event:
+      OperationName: Add member to role
+      Category: RoleManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"compromised.admin@contoso.com"}}'
+      TargetResources: '[{"type":"User","userPrincipalName":"temp.contractor@contoso.com","modifiedProperties":[{"displayName":"Role.DisplayName","newValue":"Global Administrator"}]}]'
+
+  - name: privileged_role_administrator_granted
+    label: malicious
+    why: >-
+      Privileged Role Administrator can grant any other role, including Global
+      Administrator. It is the quiet version of the same escalation.
+    event:
+      OperationName: Add member to role
+      Category: RoleManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"compromised.admin@contoso.com"}}'
+      TargetResources: '[{"type":"User","userPrincipalName":"svc.integration@contoso.com","modifiedProperties":[{"displayName":"Role.DisplayName","newValue":"Privileged Role Administrator"}]}]'
+
+  - name: application_administrator_granted_to_service_principal
+    label: malicious
+    why: Application Administrator lets the holder add credentials to any app — persistence by another route
+    event:
+      OperationName: Add member to role
+      Category: RoleManagement
+      Result: success
+      InitiatedBy: '{"app":{"appId":"b4f6c2a1-9e33-4d18-88b7-0c5a3e7f1d92","displayName":"Reporting Connector"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"Reporting Connector","modifiedProperties":[{"displayName":"Role.DisplayName","newValue":"Application Administrator"}]}]'
+
+  - name: eligible_global_admin_assignment
+    label: malicious
+    why: >-
+      PIM eligibility for Global Administrator is the same grant deferred by one
+      click. Watching only activations would miss the assignment that made it
+      possible.
+    event:
+      OperationName: Add eligible member to role
+      Category: RoleManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"compromised.admin@contoso.com"}}'
+      TargetResources: '[{"type":"User","userPrincipalName":"temp.contractor@contoso.com","modifiedProperties":[{"displayName":"Role.DisplayName","newValue":"Global Administrator"}]}]'
+
+  - name: helpdesk_administrator_granted
+    label: benign
+    why: routine helpdesk onboarding into a role that cannot escalate to tenant control
+    event:
+      OperationName: Add member to role
+      Category: RoleManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"identity.admin@contoso.com"}}'
+      TargetResources: '[{"type":"User","userPrincipalName":"new.analyst@contoso.com","modifiedProperties":[{"displayName":"Role.DisplayName","newValue":"Helpdesk Administrator"}]}]'
+
+  - name: security_reader_granted
+    label: benign
+    why: read-only role handed to a SOC analyst — the most common role event in a security-conscious tenant
+    event:
+      OperationName: Add member to role
+      Category: RoleManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"identity.admin@contoso.com"}}'
+      TargetResources: '[{"type":"User","userPrincipalName":"soc.analyst@contoso.com","modifiedProperties":[{"displayName":"Role.DisplayName","newValue":"Security Reader"}]}]'
+
+  - name: directory_readers_granted_to_app
+    label: benign
+    why: an application granted Directory Readers during a normal integration onboarding
+    event:
+      OperationName: Add member to role
+      Category: RoleManagement
+      Result: success
+      InitiatedBy: '{"user":{"userPrincipalName":"cloud.ops@contoso.com"}}'
+      TargetResources: '[{"type":"ServicePrincipal","displayName":"HR Sync","modifiedProperties":[{"displayName":"Role.DisplayName","newValue":"Directory Readers"}]}]'
+
+  - name: failed_global_admin_assignment
+    label: benign
+    why: >-
+      The assignment failed, so no privilege was granted. Worth hunting for as an
+      attempt, but not the same event as a successful escalation — the rule
+      requires success and this case proves the requirement is doing work.
+    event:
+      OperationName: Add member to role
+      Category: RoleManagement
+      Result: failure
+      InitiatedBy: '{"user":{"userPrincipalName":"low.priv.user@contoso.com"}}'
+      TargetResources: '[{"type":"User","userPrincipalName":"low.priv.user@contoso.com","modifiedProperties":[{"displayName":"Role.DisplayName","newValue":"Global Administrator"}]}]'
