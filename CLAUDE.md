@@ -59,24 +59,50 @@ pinned in `.hayabusa-version` and read by CI — bump it there, nowhere else.
 meaning to; set `UV_PROJECT_ENVIRONMENT` to a scratch path to test the lock.
 
 ## Status
-19 authored detections (15 Windows + 4 Entra ID). **125 tests.** Every rule is scored against labelled
-events (122 of them) for precision/recall/FP rate, with per-rule thresholds that
-gate CI. `sigma check --fail-on-issues` passes at **0 issues**. All 15 rules
-convert to source-bound Splunk searches; the process_creation subset also
-converts to Microsoft XDR KQL. Coverage: 16 authored techniques (headline) plus
-290 vendored-only, across 15 tactics.
+19 authored detections (15 Windows + 4 Entra ID). **125 tests.** Every rule is
+scored against labelled events (**158** of them) for precision/recall/FP rate,
+with per-rule thresholds that gate CI. `sigma check --fail-on-issues -c
+sigma-validation.yml` passes at **0 issues**. All 15 Windows rules convert to
+source-bound Splunk searches, the process_creation subset also to Microsoft XDR
+KQL, and the 4 Entra rules to Azure Monitor KQL bound to SigninLogs/AuditLogs.
+Coverage: **20 authored techniques** across 9 tactics (headline), plus 289
+vendored-only.
 
 **One command:** `uv sync --all-extras && uv run detkit ci` — installs the pinned
 Hayabusa, runs every gate in CI's order, ~20s.
 
-### Production-grade engagement (6 phases, agreed 2026-08-14)
-All six phases are ✅ done: honest gates → Python foundation → eval harness →
-rule quality + CI gating → reproducible setup → README/dashboard.
+### Engagement history
+Six-phase "portfolio → production-grade" run (agreed 2026-08-14) is ✅ done:
+honest gates → Python foundation → eval harness → rule quality + CI gating →
+reproducible setup → README/dashboard. Then the site's How-it-works page +
+metric tooltips (2026-08-20), then the Entra ID tier (2026-08-20, 4337227).
 
-**Remaining follow-ups (none blocking):**
-- Branch protection is not enabled (see below) — awaiting Can's call.
-- `posh_ps_susp_encoded_powershell_scriptblock` was demoted to `informational`
-  on my initiative; Can has not confirmed or vetoed.
+### Next up — pick up here
+1. **Tier the 4104 obfuscation rule by what is being obfuscated.** This is Can's
+   own call, given 2026-08-20 in answer to the pending veto: *severity should
+   follow the payload, not the presence of obfuscation*. Keep
+   `posh_ps_susp_encoded_powershell_scriptblock` at `informational` (it fires on
+   two thirds of benign PowerShell — measured), and add a higher-severity
+   companion that requires obfuscation **plus** a payload indicator in the same
+   script block: `IEX`/`Invoke-Expression`, `DownloadString`/`DownloadFile`,
+   `FromBase64String`, `Start-Process`, `New-Object Net.WebClient`. Needs its own
+   eval case set whose benign half is the *existing* rule's false positives
+   (`-join`, `[Convert]::ToInt`, CSV formatting) — the whole point is that those
+   must not reach the new rule's severity.
+2. **More Entra rules, now that the tier exists** — MFA denied by user (fatigue),
+   risky sign-in with a legacy client, cross-tenant access grant, user removed
+   from a Conditional Access policy exclusion. Each is a case set + a rule; the
+   gates already handle them.
+3. **`detkit probe` does not work for cloud rules** — it fetches pinned EVTX.
+   Either teach it to run a rule over its case set, or say so in its help. Right
+   now it just fails on an Entra stem, which is a bad first experience.
+4. **Optional, bigger:** the "prove it in a real SIEM" phase Can did not pick —
+   Splunk in Docker, load the compiled searches, replay the pinned EVTX, capture
+   evidence that they fire. Turns "deployable" into "deployed".
+
+### Decisions Can has made — do not re-raise
+- **Branch protection: NO** (2026-08-20). Commit straight to main; CI is the gate.
+- **4104 obfuscation rule:** not vetoed — restructure it by payload, per item 1.
 
 **Rule-authoring loop:** `detkit probe <rule_stem>` fetches the pinned EVTX,
 runs the rule's compiled SQL against it, and prints matches — or, when a rule
