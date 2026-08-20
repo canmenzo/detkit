@@ -40,6 +40,7 @@ DRIFT_PATHS = (
     "vendored/report.json",
     "evals/results.json",
     "site/index.html",
+    "site/about.html",
     "README.md",
 )
 

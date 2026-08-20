@@ -5,11 +5,25 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Detection Coverage — Detection-as-Code</title>
 <style>
+
   :root { --bg:#0d1117; --card:#161b22; --line:#30363d; --fg:#e6edf3;
-           --muted:#8b949e; --accent:#58a6ff; --ok:#3fb950; --warn:#d29922; }
+          --muted:#8b949e; --accent:#58a6ff; --ok:#3fb950; --warn:#d29922;
+          --bad:#ff7b72; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--fg);
-          font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+         font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+  code, .mono { font-family:ui-monospace,SFMono-Regular,Consolas,monospace; }
+  a { color:var(--accent); }
+  nav.top { border-bottom:1px solid var(--line); background:#0d1117f2; position:sticky;
+            top:0; z-index:20; backdrop-filter:blur(6px); }
+  nav.top div { max-width:1100px; margin:0 auto; padding:10px 24px; display:flex;
+                gap:18px; align-items:center; font-size:14px; }
+  nav.top a { color:var(--muted); text-decoration:none; padding:4px 0;
+              border-bottom:2px solid transparent; }
+  nav.top a:hover { color:var(--fg); }
+  nav.top a.on { color:var(--fg); border-bottom-color:var(--accent); }
+  nav.top .spacer { flex:1; }
+
   header { padding:32px 24px 8px; max-width:1100px; margin:0 auto; }
   h1 { margin:0 0 4px; font-size:26px; }
   .sub { color:var(--muted); }
@@ -17,10 +31,13 @@
   .stats { display:flex; gap:14px; flex-wrap:wrap; margin:20px 0; }
   .stat { background:var(--card); border:1px solid var(--line); border-radius:10px;
            padding:14px 18px; min-width:120px; }
+  .stat:focus { outline:1px solid var(--accent); }
   .stat b { display:block; font-size:24px; }
   .stat span { color:var(--muted); font-size:13px; }
   .stat.alt { border-color:#1f6feb55; }
   .stat.alt b { color:var(--accent); }
+  .hint { font-size:12.5px; color:var(--muted); margin:-6px 0 0; }
+  .hint b { color:var(--fg); font-weight:600; }
   h2 { font-size:17px; margin:28px 0 0; }
   .h2sub { color:var(--muted); font-size:13px; margin:2px 0 0; }
   main { max-width:1100px; margin:0 auto; padding:0 24px 60px; }
@@ -43,10 +60,12 @@
   .desc { color:var(--muted); font-size:13.5px; margin:6px 0 10px; }
   .metrics { display:flex; gap:8px; flex-wrap:wrap; margin:0 0 10px; }
   .metric { font-size:11.5px; padding:3px 9px; border-radius:6px; font-weight:600;
-             border:1px solid var(--line); color:var(--fg); font-variant-numeric:tabular-nums; }
+             border:1px solid var(--line); color:var(--fg); font-variant-numeric:tabular-nums;
+             border-bottom-style:dashed; }
+  .metric:focus { outline:1px solid var(--accent); }
   .metric.good { background:#23863626; color:var(--ok); border-color:#2386362e; }
   .metric.warn { background:#9e6a0326; color:var(--warn); border-color:#9e6a032e; }
-  .metric.bad { background:#da363326; color:#ff7b72; border-color:#da36332e; }
+  .metric.bad { background:#da363326; color:var(--bad); border-color:#da36332e; }
   .metric.muted { color:var(--muted); font-weight:400; }
   .tags { display:flex; gap:6px; flex-wrap:wrap; }
   .tag { font-size:12px; padding:2px 8px; border-radius:6px;
@@ -58,13 +77,37 @@
   .badge.untested { background:#6e768166; color:var(--muted); }
   .row { display:flex; justify-content:space-between; align-items:start; gap:12px; }
   .lvl { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; }
-  .lvl.critical { color:#ff7b72; } .lvl.high { color:var(--warn); }
+  .lvl.critical { color:var(--bad); } .lvl.high { color:var(--warn); }
   .lvl.medium { color:var(--accent); } .lvl.low { color:var(--muted); }
   footer { max-width:1100px; margin:0 auto; padding:24px; color:var(--muted);
             font-size:12.5px; border-top:1px solid var(--line); }
+
+  [data-tip], [data-tipid] { cursor:help; }
+  .tip { position:absolute; z-index:50; max-width:380px; width:max-content;
+         background:#1c2129; border:1px solid #3d444d; border-radius:10px;
+         padding:12px 14px; box-shadow:0 10px 34px #000a; font-size:13px;
+         line-height:1.5; color:var(--fg); opacity:0; visibility:hidden;
+         transition:opacity .12s ease; pointer-events:none; text-align:left;
+         text-transform:none; letter-spacing:normal; font-weight:400; }
+  .tip.on { opacity:1; visibility:visible; }
+  .tip b.h { display:block; font-size:13.5px; margin:0 0 6px; color:var(--fg); }
+  .tip p { margin:0 0 7px; color:#c9d1d9; }
+  .tip p:last-child { margin-bottom:0; }
+  .tip .calc { display:block; background:#0d1117; border:1px solid var(--line);
+               border-radius:6px; padding:7px 9px; margin:0 0 7px;
+               font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+               font-size:12.5px; color:var(--accent); white-space:normal; }
+  .tip code { background:#0d1117; border-radius:4px; padding:1px 4px; font-size:12px; }
+  .tip .src { color:var(--muted); font-size:12px; border-top:1px solid var(--line);
+              padding-top:7px; }
+  .tip .gate { font-size:12px; color:var(--muted); }
+  .tip .pass { color:var(--ok); font-weight:600; }
+  .tip .fail { color:var(--bad); font-weight:600; }
+
 </style>
 </head>
 <body>
+<nav class="top"><div><a href="index.html" class="on">Coverage</a><a href="about.html">How it works</a><span class="spacer"></span><a href="https://github.com/canmenzo/detection-engineering">GitHub ↗</a></div></nav>
 <header>
   <h1>Detection Coverage</h1>
   <div class="sub">Detection-as-Code — every authored rule is version-controlled,
@@ -73,14 +116,17 @@
     that miss the bar they declare fail the build.
     <a href="https://github.com/canmenzo/detection-engineering/blob/main/README.md">View source on GitHub →</a></div>
   <div class="stats">
-    <div class="stat"><b>15</b><span>authored detections</span></div>
-    <div class="stat"><b>16</b><span>ATT&amp;CK techniques authored</span></div>
-    <div class="stat"><b>15</b><span>scored for precision/recall</span></div>
-    <div class="stat"><b>125</b><span>labelled eval events</span></div>
-    <div class="stat"><b>15</b><span>fixture-tested on real EVTX</span></div>
-    <div class="stat"><b>16</b><span>pinned EVTX samples</span></div>
+    <div class="stat" tabindex="0" data-tip="&lt;b class=&#x27;h&#x27;&gt;Rules written in this repo&lt;/b&gt;&lt;p&gt;Sigma rules under &lt;code&gt;detections/&lt;/code&gt;. Every one must carry ATT&amp;amp;CK tags, an EVTX fixture proving it fires on real telemetry, and a labelled case set scoring its quality — &lt;code&gt;detkit validate&lt;/code&gt; fails the build otherwise.&lt;/p&gt;&lt;p class=&#x27;src&#x27;&gt;The pinned third-party SigmaHQ corpus is counted separately below and is deliberately held to none of those gates. Mixing the two would inflate this number by two orders of magnitude and mean nothing.&lt;/p&gt;"><b>15</b><span>authored detections</span></div>
+    <div class="stat" tabindex="0" data-tip="&lt;b class=&#x27;h&#x27;&gt;Distinct ATT&amp;amp;CK techniques covered&lt;/b&gt;&lt;p&gt;Counted from the &lt;code&gt;tags:&lt;/code&gt; of every authored rule — one technique may be covered by several rules, and is counted once.&lt;/p&gt;&lt;p&gt;Tags are validated against ATT&amp;amp;CK &lt;b&gt;v19.2&lt;/b&gt;, pinned in &lt;code&gt;.attack-version&lt;/code&gt;. pySigma resolves the technique vocabulary from MITRE&#x27;s live feed, so without that pin the map would drift with no commit in this repo; the gate fails if the resolved release moves.&lt;/p&gt;"><b>16</b><span>ATT&amp;CK techniques authored</span></div>
+    <div class="stat" tabindex="0" data-tip="&lt;b class=&#x27;h&#x27;&gt;Rules with a labelled case set&lt;/b&gt;&lt;p&gt;Rules that have &lt;code&gt;evals/&amp;lt;rule&amp;gt;/cases.yml&lt;/code&gt;: hand-written malicious and benign events used to measure how well the rule discriminates, not just whether it fires.&lt;/p&gt;&lt;p class=&#x27;src&#x27;&gt;Run by &lt;code&gt;detkit eval&lt;/code&gt;, which compiles each rule to SQL via pySigma&#x27;s SQLite backend and executes it over the case set.&lt;/p&gt;"><b>15</b><span>scored for precision/recall</span></div>
+    <div class="stat" tabindex="0" data-tip="&lt;b class=&#x27;h&#x27;&gt;The golden dataset&lt;/b&gt;&lt;p&gt;Individual events hand-labelled malicious or benign across all case sets. Each one carries a written &lt;code&gt;why&lt;/code&gt;; the loader rejects any case without it, because an unexplained label is an assertion rather than evidence.&lt;/p&gt;&lt;p&gt;Benign cases must be look-alikes of the malicious ones — same event type, differing only where the rule is supposed to discriminate. A benign event of a different type is rejected: it cannot exercise the rule&#x27;s logic.&lt;/p&gt;"><b>125</b><span>labelled eval events</span></div>
+    <div class="stat" tabindex="0" data-tip="&lt;b class=&#x27;h&#x27;&gt;Proven against real telemetry&lt;/b&gt;&lt;p&gt;Rules run by &lt;b&gt;Hayabusa&lt;/b&gt; against pinned public EVTX captures — genuine Windows event logs recorded from real attacker tooling — where the rule must produce a hit.&lt;/p&gt;&lt;p&gt;This is a separate layer from the scoring: the case sets test the rule&#x27;s logic, and this tests that the logic matches the field names and channels Windows actually emits. Synthetic events can&#x27;t catch a rule bound to a field that does not exist.&lt;/p&gt;"><b>15</b><span>fixture-tested on real EVTX</span></div>
+    <div class="stat" tabindex="0" data-tip="&lt;b class=&#x27;h&#x27;&gt;Sample provenance&lt;/b&gt;&lt;p&gt;Public EVTX files pinned by URL and SHA-256 in &lt;code&gt;tests/fixtures/&amp;lt;rule&amp;gt;/sample_sources.yml&lt;/code&gt;, fetched and cached at test time rather than committed — the repo stays small and the samples stay verifiable.&lt;/p&gt;&lt;p class=&#x27;src&#x27;&gt;A changed checksum fails the test rather than silently testing different data.&lt;/p&gt;"><b>16</b><span>pinned EVTX samples</span></div>
   </div>
-  <div class="sub" style="font-size:13px;margin-top:-6px">
+  <p class="hint"><b>Hover any number</b> — every metric on this page explains how it
+    is calculated and where its data comes from. For the full picture, read
+    <a href="about.html">How it works</a>.</p>
+  <div class="sub" style="font-size:13px;margin-top:10px">
     Separately, a pinned copy of the public SigmaHQ Windows corpus
     (<b>2,399</b> third-party rules, 100% convert rate) is run
     through the same conversion pipeline and adds <b>290</b> further
@@ -106,15 +152,110 @@
   Generated by <code>detkit dashboard</code> from the rule corpus —
   do not edit by hand. Status: <b>tested</b> = proven to fire on a pinned public
   EVTX sample via Hayabusa; <b>conversion-only</b> = validated by lint + SPL/KQL
-  conversion (declared exemption); see the repo for details.
+  conversion (declared exemption); see <a href="about.html">How it works</a> for details.
 </footer>
 <script>
 const RULES = [{"stem": "security_win_asrep_roasting", "title": "AS-REP Roasting - Kerberos Pre-Authentication Not Required", "description": "Detects a Kerberos authentication-service request (EID 4768) for an account that does not require pre-authentication (PreAuthType 0). When 'Do not require Kerberos preauthentication' is set on an account, anyone can request an AS-REP encrypted with the account's password hash and crack it offline (AS-REP roasting). RC4 (0x17) encryption makes the resulting hash especially weak. Machine accounts are excluded.", "level": "high", "tactics": ["Credential Access"], "techniques": ["T1558.004"], "logsource": "security", "status": "tested", "samples": 1, "path": "detections/windows/builtin/security_win_asrep_roasting.yml", "metrics": {"tp": 3, "fp": 1, "fn": 0, "tn": 3, "precision": 0.75, "recall": 1.0, "fp_rate": 0.25, "missed": [], "false_alarms": ["legacy_account_without_preauth"], "thresholds": {"min_precision": 0.7, "min_recall": 1.0, "max_fp_rate": 0.3}}}, {"stem": "security_win_dcsync_replication", "title": "Active Directory Replication from Non-Machine Account (DCSync)", "description": "Detects a DCSync attack: a security principal that is not a domain controller requests directory-replication rights (EID 4662 referencing the DS-Replication-Get-Changes control access rights). Mimikatz lsadump::dcsync and Impacket secretsdump abuse these rights to pull password hashes (incl. krbtgt) for the entire domain without touching a DC's disk.", "level": "critical", "tactics": ["Credential Access"], "techniques": ["T1003.006"], "logsource": "security", "status": "tested", "samples": 1, "path": "detections/windows/builtin/security_win_dcsync_replication.yml", "metrics": {"tp": 3, "fp": 0, "fn": 0, "tn": 4, "precision": 1.0, "recall": 1.0, "fp_rate": 0.0, "missed": [], "false_alarms": [], "thresholds": {"min_precision": 0.9, "min_recall": 1.0, "max_fp_rate": 0.1}}}, {"stem": "security_win_eventlog_cleared", "title": "Windows Security Event Log Cleared", "description": "Detects clearing of the Windows Security event log (EID 1102). Attackers wipe logs to destroy evidence of intrusion after credential access or lateral movement. Legitimate clears are rare and should be attributable to a known maintenance window or admin action.", "level": "high", "tactics": ["Defense Impairment"], "techniques": ["T1685.005"], "logsource": "security", "status": "tested", "samples": 1, "path": "detections/windows/builtin/security_win_eventlog_cleared.yml", "metrics": {"tp": 3, "fp": 2, "fn": 0, "tn": 0, "precision": 0.6, "recall": 1.0, "fp_rate": 1.0, "missed": [], "false_alarms": ["admin_clears_during_troubleshooting", "cleared_before_decommission"], "thresholds": {"min_precision": 0.55, "min_recall": 1.0, "max_fp_rate": 1.0}}}, {"stem": "security_win_kerberoasting_rc4_request", "title": "Kerberoasting - RC4 Service Ticket Request", "description": "Detects a likely Kerberoasting attack: a TGS (service ticket) request (EID 4769) for a user-based service account encrypted with legacy RC4-HMAC (0x17). Attackers request RC4 tickets for SPN-bearing accounts so the resulting blob can be cracked offline to recover the service-account password. Machine accounts and krbtgt are excluded; modern environments should use AES, making RC4 requests for service accounts anomalous.", "level": "high", "tactics": ["Credential Access"], "techniques": ["T1558.003"], "logsource": "security", "status": "tested", "samples": 1, "path": "detections/windows/builtin/security_win_kerberoasting_rc4_request.yml", "metrics": {"tp": 3, "fp": 1, "fn": 0, "tn": 5, "precision": 0.75, "recall": 1.0, "fp_rate": 0.1667, "missed": [], "false_alarms": ["legacy_appliance_rc4"], "thresholds": {"min_precision": 0.7, "min_recall": 1.0, "max_fp_rate": 0.25}}}, {"stem": "security_win_local_user_created", "title": "Local User Account Created", "description": "Records creation of a new user account (EID 4720). Adversaries create local or domain accounts to establish persistence and maintain access independent of any compromised credential. This is an AUDIT rule, not an alert. It has no discriminating logic and account creation is routine on a managed estate, so it was measured at a 100% false-positive rate against its benign cases. Its value is as a trail to correlate against: pair with group-membership changes (4732/4728) to spot a freshly created account being granted privileges, which is the signal worth paging on.", "level": "informational", "tactics": ["Persistence"], "techniques": ["T1136.001"], "logsource": "security", "status": "tested", "samples": 1, "path": "detections/windows/builtin/security_win_local_user_created.yml", "metrics": {"tp": 3, "fp": 4, "fn": 0, "tn": 0, "precision": 0.4286, "recall": 1.0, "fp_rate": 1.0, "missed": [], "false_alarms": ["helpdesk_creates_local_admin", "imaging_creates_default_account", "sql_installer_creates_service_account", "defaultaccount_enabled_by_os"], "thresholds": {"min_precision": 0.4, "min_recall": 1.0, "max_fp_rate": 1.0}}}, {"stem": "security_win_scheduled_task_created", "title": "Suspicious Scheduled Task Created", "description": "Detects creation of a scheduled task whose action runs a script interpreter, a LOLBIN, or a binary in a user-writable location (EID 4698). Scheduled tasks are a common execution and persistence mechanism: attackers register tasks to run payloads at logon, on a timer, or as SYSTEM. Alerting on every 4698 was measured at a 100% false-positive rate against the benign half of this rule's eval set \u2014 installers, updaters and management agents create tasks constantly. The action content is where the signal is.", "level": "high", "tactics": ["Execution", "Persistence", "Privilege Escalation"], "techniques": ["T1053.005"], "logsource": "security", "status": "tested", "samples": 1, "path": "detections/windows/builtin/security_win_scheduled_task_created.yml", "metrics": {"tp": 3, "fp": 1, "fn": 0, "tn": 3, "precision": 0.75, "recall": 1.0, "fp_rate": 0.25, "missed": [], "false_alarms": ["admin_creates_reporting_task"], "thresholds": {"min_precision": 0.7, "min_recall": 1.0, "max_fp_rate": 0.3}}}, {"stem": "security_win_service_installed", "title": "Suspicious Windows Service Installed", "description": "Detects installation of a Windows service whose image path is a script interpreter, a LOLBIN, a user-writable location, or a bare executable dropped directly in the Windows root (EID 4697). Service creation is a classic persistence and privilege-escalation vector \u2014 PsExec, SMBexec, Cobalt Strike and Mimikatz drivers all register services that execute as SYSTEM. Alerting on every 4697 was measured at a 100% false-positive rate against the benign half of this rule's eval set: every driver, agent and application installer registers services. The discriminators below are what make this a detection rather than an event forwarder.", "level": "high", "tactics": ["Persistence", "Privilege Escalation"], "techniques": ["T1543.003"], "logsource": "security", "status": "tested", "samples": 1, "path": "detections/windows/builtin/security_win_service_installed.yml", "metrics": {"tp": 3, "fp": 0, "fn": 0, "tn": 5, "precision": 1.0, "recall": 1.0, "fp_rate": 0.0, "missed": [], "false_alarms": [], "thresholds": {"min_precision": 0.9, "min_recall": 1.0, "max_fp_rate": 0.1}}}, {"stem": "security_win_user_added_to_privileged_group", "title": "Member Added to Privileged Local Group", "description": "Detects a member being added to a privileged built-in local group (EID 4732): Administrators, Backup Operators, Remote Desktop Users, or Distributed COM Users. Adding a freshly created or low-privilege account to these groups is a common persistence and privilege-escalation step. Correlate with 4720 (account creation) to catch create-then-elevate sequences.", "level": "high", "tactics": ["Persistence", "Privilege Escalation"], "techniques": ["T1098"], "logsource": "security", "status": "tested", "samples": 1, "path": "detections/windows/builtin/security_win_user_added_to_privileged_group.yml", "metrics": {"tp": 3, "fp": 2, "fn": 0, "tn": 2, "precision": 0.6, "recall": 1.0, "fp_rate": 0.5, "missed": [], "false_alarms": ["helpdesk_grants_rdp_access", "imaging_adds_corpadmin"], "thresholds": {"min_precision": 0.55, "min_recall": 1.0, "max_fp_rate": 0.55}}}, {"stem": "posh_ps_defender_tamper", "title": "Microsoft Defender Tampering via PowerShell", "description": "Detects PowerShell ScriptBlock activity (EID 4104) that weakens Microsoft Defender: adding scan exclusions (ExclusionPath/Extension/Process), disabling real-time or behavior monitoring, or setting the default threat action to allow. Attackers blind Defender via Set-MpPreference/Add-MpPreference before dropping or executing payloads.", "level": "high", "tactics": ["Defense Impairment"], "techniques": ["T1685"], "logsource": "ps_script", "status": "tested", "samples": 1, "path": "detections/windows/powershell/posh_ps_defender_tamper.yml", "metrics": {"tp": 5, "fp": 2, "fn": 0, "tn": 3, "precision": 0.7143, "recall": 1.0, "fp_rate": 0.4, "missed": [], "false_alarms": ["sanctioned_lob_app_exclusion", "sql_data_directory_exclusion"], "thresholds": {"min_precision": 0.65, "min_recall": 1.0, "max_fp_rate": 0.45}}}, {"stem": "posh_ps_susp_encoded_powershell_scriptblock", "title": "Suspicious Encoded or Obfuscated PowerShell ScriptBlock", "description": "Surfaces PowerShell ScriptBlock logging (EID 4104) containing encoding and obfuscation primitives emitted by Invoke-Obfuscation and malware loaders: base64 decoding, char-array reconstruction, integer decoding, and -bxor deobfuscation. This is a HUNTING query, not an alert. An earlier version of this description claimed these primitives are \"rare in legitimate use\"; measuring it showed the opposite \u2014 `-join` and `[Convert]::ToInt` appear throughout ordinary administrative scripting, and the rule fires on two thirds of the benign PowerShell in its eval set. Use it to rank script blocks for review. Turning it into an alert requires scoring several primitives together rather than matching any one of them.", "level": "informational", "tactics": ["Execution", "Stealth"], "techniques": ["T1027", "T1059.001"], "logsource": "ps_script", "status": "tested", "samples": 2, "path": "detections/windows/powershell/posh_ps_susp_encoded_powershell_scriptblock.yml", "metrics": {"tp": 4, "fp": 4, "fn": 0, "tn": 2, "precision": 0.5, "recall": 1.0, "fp_rate": 0.6667, "missed": [], "false_alarms": ["admin_joins_path_segments", "report_script_formats_csv", "parse_config_integer", "legitimate_base64_certificate"], "thresholds": {"min_precision": 0.45, "min_recall": 1.0, "max_fp_rate": 0.7}}}, {"stem": "proc_creation_win_certutil_download_decode", "title": "Certutil Download or Decode via Command Line", "description": "Detects certutil.exe used as a living-off-the-land download/decode utility: -urlcache / -verifyctl to pull a remote file, or -decode/-encode to unpack a staged payload. Certutil is a signed Microsoft binary, so attackers abuse it to retrieve and deobfuscate tooling while blending into normal admin activity. Authored against the generic process_creation logsource rather than a specific event ID, so the processing pipeline decides whether it renders against Sysmon EID 1, Security EID 4688 or a cloud EDR table. OriginalFileName is matched alongside Image so a renamed binary still hits.", "level": "high", "tactics": ["Command & Control", "Stealth"], "techniques": ["T1105", "T1140"], "logsource": "process_creation", "status": "tested", "samples": 1, "path": "detections/windows/process_creation/proc_creation_win_certutil_download_decode.yml", "metrics": {"tp": 4, "fp": 2, "fn": 0, "tn": 4, "precision": 0.6667, "recall": 1.0, "fp_rate": 0.3333, "missed": [], "false_alarms": ["pki_script_encodes_request", "sccm_decodes_policy_blob"], "thresholds": {"min_precision": 0.6, "min_recall": 1.0, "max_fp_rate": 0.4}}}, {"stem": "proc_creation_win_encoded_powershell", "title": "Encoded PowerShell Command Line", "description": "Detects PowerShell execution with an encoded command argument. Adversaries base64-encode commands to obfuscate intent and evade command-line inspection. PowerShell accepts any unambiguous abbreviation of -EncodedCommand, so an earlier version of this rule that listed -enc / -encodedcommand / -ec missed `powershell -e <base64>` \u2014 a documented evasion, and one the eval harness caught as a recall gap. The regex now accepts any -e* switch, with the precision coming from the argument: at least 15 characters of base64 alphabet. That length requirement is what keeps -ExecutionPolicy Bypass and friends out.", "level": "high", "tactics": ["Execution", "Stealth"], "techniques": ["T1027", "T1059.001"], "logsource": "process_creation", "status": "tested", "samples": 1, "path": "detections/windows/process_creation/proc_creation_win_encoded_powershell.yml", "metrics": {"tp": 5, "fp": 1, "fn": 0, "tn": 6, "precision": 0.8333, "recall": 1.0, "fp_rate": 0.1429, "missed": [], "false_alarms": ["inner_tool_env_var_switch"], "thresholds": {"min_precision": 0.8, "min_recall": 1.0, "max_fp_rate": 0.2}}}, {"stem": "proc_creation_win_firewall_disabled_netsh", "title": "Windows Firewall Disabled via Netsh", "description": "Detects use of netsh.exe to turn off Windows Defender Firewall: 'netsh advfirewall set <profile> state off' or 'netsh firewall set ... disable'. Adversaries disable the host firewall to enable inbound C2, lateral movement, or tool transfer. Authored against the generic process_creation logsource rather than a specific event ID, so the processing pipeline decides which telemetry it renders against.", "level": "high", "tactics": ["Defense Impairment"], "techniques": ["T1686.003"], "logsource": "process_creation", "status": "tested", "samples": 1, "path": "detections/windows/process_creation/proc_creation_win_firewall_disabled_netsh.yml", "metrics": {"tp": 3, "fp": 1, "fn": 0, "tn": 6, "precision": 0.75, "recall": 1.0, "fp_rate": 0.1429, "missed": [], "false_alarms": ["disable_firewall_rule_not_firewall"], "thresholds": {"min_precision": 0.7, "min_recall": 1.0, "max_fp_rate": 0.2}}}, {"stem": "proc_creation_win_impacket_wmiexec_output", "title": "Impacket-Style Remote Execution Output Redirect (WMIexec/SMBexec/ATexec)", "description": "Detects the command-output semaphore that Impacket's wmiexec/smbexec/atexec leave behind: a 'cmd.exe /Q /c ...' invocation whose stdout/stderr is redirected to a loopback admin share file beginning with '__' (e.g. \\\\127.0.0.1\\C$\\__output or \\\\127.0.0.1\\ADMIN$\\__1700000000.00). This pattern is how those tools retrieve the result of a remotely executed command and is a strong indicator of lateral movement / remote code execution over WMI or SMB.", "level": "high", "tactics": ["Execution", "Lateral Movement"], "techniques": ["T1047"], "logsource": "process_creation", "status": "tested", "samples": 1, "path": "detections/windows/process_creation/proc_creation_win_impacket_wmiexec_output.yml", "metrics": {"tp": 3, "fp": 0, "fn": 0, "tn": 4, "precision": 1.0, "recall": 1.0, "fp_rate": 0.0, "missed": [], "false_alarms": [], "thresholds": {"min_precision": 0.9, "min_recall": 1.0, "max_fp_rate": 0.1}}}, {"stem": "sysmon_proc_access_lsass_dump", "title": "LSASS Process Access with Credential-Dump Access Mask", "description": "Detects a process opening a handle to lsass.exe with an access mask sufficient to read process memory (Sysmon EID 10). Credential dumpers such as Mimikatz, ProcDump, comsvcs.dll MiniDump, and LSASSY request VM_READ/QUERY_INFORMATION on LSASS to extract plaintext credentials, NT hashes, and Kerberos tickets.", "level": "high", "tactics": ["Credential Access"], "techniques": ["T1003.001"], "logsource": "process_access", "status": "tested", "samples": 1, "path": "detections/windows/sysmon/sysmon_proc_access_lsass_dump.yml", "metrics": {"tp": 4, "fp": 1, "fn": 0, "tn": 4, "precision": 0.8, "recall": 1.0, "fp_rate": 0.2, "missed": [], "false_alarms": ["defender_scans_lsass"], "thresholds": {"min_precision": 0.75, "min_recall": 1.0, "max_fp_rate": 0.25}}}];
+window.TIPS = {};
 const list = document.getElementById('list');
 const q = document.getElementById('q');
 let tactic = '';
 function esc(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function pct(v){ return v === null || v === undefined ? 'n/a' : v.toFixed(2); }
+function names(list){ return list.map(n => '<code>' + esc(n) + '</code>').join(', '); }
+function verdict(ok, value){ return `<span class="${ok ? 'pass' : 'fail'}">${value} ${ok ? 'passes' : 'FAILS'}</span>`; }
+function caseFile(r){ return '<code>evals/' + esc(r.stem) + '/cases.yml</code>'; }
+
+// One tooltip per published metric. They are built here rather than written into
+// attributes so the rule's own counts appear in the formula — the point is to
+// show the arithmetic on this rule, not a textbook definition of it.
+function fpTip(r){
+  const m = r.metrics, benign = m.fp + m.tn, gate = m.thresholds ? m.thresholds.max_fp_rate : null;
+  const ok = gate === null || m.fp_rate <= gate;
+  return `<b class="h">False-positive rate — read this one first</b>
+    <p>The share of <b>benign</b> events labelled for this rule that fired it anyway.</p>
+    <span class="calc">FP &divide; (FP + TN) = ${m.fp} &divide; (${m.fp} + ${m.tn}) = ${pct(m.fp_rate)}</span>
+    <p>${m.fp} of the ${benign} benign look-alikes alerted.${m.false_alarms && m.false_alarms.length ? ' Fired on: ' + names(m.false_alarms) + '.' : ''}</p>
+    <p>It leads because it is stable: adding or removing malicious cases cannot move it, so it
+       can't be flattered by the shape of the dataset the way precision can.</p>
+    <p class="src">Measured by <code>detkit eval</code>: the Sigma rule is compiled to SQL
+       (pySigma SQLite backend) and executed over the hand-labelled events in ${caseFile(r)}.</p>
+    <p class="gate">CI gate — fails above ${pct(gate)}: ${verdict(ok, pct(m.fp_rate))}</p>`;
+}
+function recallTip(r){
+  const m = r.metrics, malicious = m.tp + m.fn, gate = m.thresholds ? m.thresholds.min_recall : null;
+  const ok = gate === null || m.recall >= gate;
+  return `<b class="h">Recall — did it catch what it was written for</b>
+    <p>The share of <b>malicious</b> events the rule fired on. A miss is the expensive failure:
+       an alert that never fires looks exactly like a quiet network.</p>
+    <span class="calc">TP &divide; (TP + FN) = ${m.tp} &divide; (${m.tp} + ${m.fn}) = ${pct(m.recall)}</span>
+    <p>${m.tp} of ${malicious} malicious cases caught.${m.missed && m.missed.length ? ' Missed: ' + names(m.missed) + '.' : ' Nothing missed.'}</p>
+    <p>Like FP rate it is stable — it only looks at malicious events, so benign cases cannot move it.</p>
+    <p class="src">Same run as the FP rate, over the labelled events in ${caseFile(r)}.</p>
+    <p class="gate">CI gate — must be at least ${pct(gate)}: ${verdict(ok, pct(m.recall))}</p>`;
+}
+function precisionTip(r){
+  const m = r.metrics, alerts = m.tp + m.fp, gate = m.thresholds ? m.thresholds.min_precision : null;
+  const ok = gate === null || m.precision >= gate;
+  return `<b class="h">Precision — how much of the alert queue is real</b>
+    <p>Of everything the rule alerted on, the share that was actually malicious. This is what an
+       analyst feels on shift: 0.50 means every second alert is wasted work.</p>
+    <span class="calc">TP &divide; (TP + FP) = ${m.tp} &divide; (${m.tp} + ${m.fp}) = ${pct(m.precision)}</span>
+    <p><b>Handle with care.</b> Precision depends on the ratio of malicious to benign cases, and
+       here that ratio is <i>authored</i>, not observed. In production, where benign events
+       outnumber malicious ones by orders of magnitude, the same rule scores far lower. FP rate and
+       recall don't have that problem — which is why they lead and this one trails.</p>
+    <p class="src">Measured over the labelled events in ${caseFile(r)} by <code>detkit eval</code>.</p>
+    <p class="gate">CI gate — must be at least ${pct(gate)}: ${verdict(ok, pct(m.precision))}</p>`;
+}
+function eventsTip(r){
+  const m = r.metrics, malicious = m.tp + m.fn, benign = m.fp + m.tn;
+  return `<b class="h">Where all of these numbers come from</b>
+    <p>${malicious + benign} events hand-written in ${caseFile(r)} — ${malicious} malicious,
+       ${benign} benign — each carrying a one-line <code>why</code> justifying its label. The
+       loader rejects a case without one: an unexplained label is an assertion, not evidence.</p>
+    <p>Benign cases have to be genuine look-alikes, same event type as the malicious ones, differing
+       only where the rule is supposed to discriminate. A benign case whose EventID no malicious case
+       uses is rejected, and a set with no benign cases at all is refused outright — precision would
+       be 1.00 by construction, which is the exact gap this harness exists to close.</p>
+    <span class="calc">TP ${m.tp} &middot; FP ${m.fp} &middot; FN ${m.fn} &middot; TN ${m.tn}</span>
+    <p>No <b>accuracy</b> figure is published: (TP + TN) &divide; total is dominated by whichever
+       malicious-to-benign ratio was authored, so it measures the dataset rather than the rule.</p>
+    <p class="src">Full write-up on the "How it works" page.</p>`;
+}
+function statusTip(r){
+  if (r.status === 'tested') {
+    return `<b class="h">Fixture-tested on real telemetry</b>
+      <p>Hayabusa runs this rule against ${r.samples} pinned public EVTX capture${r.samples > 1 ? 's' : ''}
+         — real Windows event logs recorded from real attacker tooling — and the rule must produce a hit.</p>
+      <p>This is a different question from the scoring above. The case sets ask <i>is the logic
+         right</i>; this asks <i>does the logic match the fields and channels Windows actually
+         emits</i>. A rule bound to a field name that does not exist passes the first and fails this.</p>
+      <p class="src">Samples are pinned by URL and SHA-256 in
+         <code>tests/fixtures/${esc(r.stem)}/sample_sources.yml</code>, fetched and cached at test time.</p>`;
+  }
+  if (r.status === 'conversion-only') {
+    return `<b class="h">Conversion-only — a declared exemption</b>
+      <p>No public EVTX sample exists for this behaviour, so the rule cannot be proven to fire on real
+         telemetry. It is still linted, metadata-gated, scored against labelled events and compiled to
+         Splunk and KQL.</p>
+      <p>The exemption is listed by name in <code>tests/conversion_only.txt</code> — an untested rule
+         has to be declared out loud, and a stale entry there fails the build.</p>`;
+  }
+  return `<b class="h">Untested</b><p>No fixture and no declared exemption. CI fails on this state;
+     if you are seeing it, the page was generated from a dirty tree.</p>`;
+}
+function levelTip(r){
+  return `<b class="h">Severity and log source</b>
+    <p><b>${esc(r.level)}</b> is the Sigma severity level — the triage weight a SOC should give it,
+       not a measure of confidence. A high-volume audit record stays <code>informational</code> even
+       when the behaviour matters, so it is available for hunting without paging anyone.</p>
+    <p><b>${esc(r.logsource)}</b> is the log source the rule binds to. It decides which channel and
+       which field names the rule reads, and it is why conversion checks that every compiled Splunk
+       query carries a <code>source=</code>: an unbound search runs against every index the user can
+       read, which is a cost incident waiting to happen.</p>`;
+}
+
 function metrics(r){
   const m = r.metrics;
   if (!m || m.precision === undefined) return '';
@@ -122,11 +263,15 @@ function metrics(r){
   // FP rate and recall do not.
   const noisy = m.fp_rate !== null && m.fp_rate >= 1.0;
   const miss  = m.recall !== null && m.recall < 1.0;
+  TIPS[r.stem + ':fp'] = fpTip(r);
+  TIPS[r.stem + ':recall'] = recallTip(r);
+  TIPS[r.stem + ':precision'] = precisionTip(r);
+  TIPS[r.stem + ':events'] = eventsTip(r);
   return `<div class="metrics">
-    <span class="metric ${noisy ? 'bad' : 'good'}">FP rate ${pct(m.fp_rate)}</span>
-    <span class="metric ${miss ? 'warn' : 'good'}">recall ${pct(m.recall)}</span>
-    <span class="metric">precision ${pct(m.precision)}</span>
-    <span class="metric muted">${m.tp + m.fp + m.fn + m.tn} labelled events</span>
+    <span class="metric ${noisy ? 'bad' : 'good'}" tabindex="0" data-tipid="${r.stem}:fp">FP rate ${pct(m.fp_rate)}</span>
+    <span class="metric ${miss ? 'warn' : 'good'}" tabindex="0" data-tipid="${r.stem}:recall">recall ${pct(m.recall)}</span>
+    <span class="metric" tabindex="0" data-tipid="${r.stem}:precision">precision ${pct(m.precision)}</span>
+    <span class="metric muted" tabindex="0" data-tipid="${r.stem}:events">${m.tp + m.fp + m.fn + m.tn} labelled events</span>
   </div>`;
 }
 function render(){
@@ -135,20 +280,24 @@ function render(){
     (!tactic || r.tactics.includes(tactic)) &&
     (!term || (r.title+r.description+r.techniques.join(' ')+r.stem).toLowerCase().includes(term))
   );
-  list.innerHTML = rows.map(r => `
+  list.innerHTML = rows.map(r => {
+    TIPS[r.stem + ':status'] = statusTip(r);
+    TIPS[r.stem + ':level'] = levelTip(r);
+    return `
     <div class="card">
       <div class="row">
         <h3><a href="https://github.com/canmenzo/detection-engineering/blob/main/${r.path}">${esc(r.title)}</a></h3>
-        <span class="badge ${r.status}">${r.status}${r.samples?(' · '+r.samples+' sample'+(r.samples>1?'s':'')):''}</span>
+        <span class="badge ${r.status}" tabindex="0" data-tipid="${r.stem}:status">${r.status}${r.samples?(' · '+r.samples+' sample'+(r.samples>1?'s':'')):''}</span>
       </div>
-      <div class="lvl ${r.level}">${esc(r.level)} · ${esc(r.logsource)}</div>
+      <div class="lvl ${r.level}" tabindex="0" data-tipid="${r.stem}:level">${esc(r.level)} · ${esc(r.logsource)}</div>
       <div class="desc">${esc(r.description)}</div>
       ${metrics(r)}
       <div class="tags">
         ${r.tactics.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}
         ${r.techniques.map(t=>`<span class="tag tech">${esc(t)}</span>`).join('')}
       </div>
-    </div>`).join('') || '<p class="sub">No detections match.</p>';
+    </div>`;
+  }).join('') || '<p class="sub">No detections match.</p>';
 }
 document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
   document.querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
@@ -156,6 +305,70 @@ document.querySelectorAll('.chip').forEach(c => c.onclick = () => {
 });
 q.oninput = render;
 render();
+
+(function () {
+  const DELAY = 600;
+  const SEL = '[data-tip],[data-tipid]';
+  let panel = null, timer = null, current = null;
+
+  function body(el) {
+    return el.dataset.tip || (window.TIPS || {})[el.dataset.tipid] || '';
+  }
+  function ensure() {
+    if (!panel) {
+      panel = document.createElement('div');
+      panel.className = 'tip';
+      panel.setAttribute('role', 'tooltip');
+      document.body.appendChild(panel);
+    }
+    return panel;
+  }
+  function show(el) {
+    const content = body(el);
+    if (!content) return;
+    const t = ensure();
+    t.innerHTML = content;
+    // Measured while hidden: visibility:hidden still lays out, so the panel
+    // never flashes in the wrong place before being positioned.
+    const r = el.getBoundingClientRect(), w = t.offsetWidth, h = t.offsetHeight;
+    let x = r.left + r.width / 2 - w / 2;
+    x = Math.max(10, Math.min(x, document.documentElement.clientWidth - w - 10));
+    let y = r.top - h - 10;
+    if (y < 10) y = r.bottom + 10;
+    t.style.left = (x + window.scrollX) + 'px';
+    t.style.top = (y + window.scrollY) + 'px';
+    t.classList.add('on');
+    current = el;
+  }
+  function hide() {
+    clearTimeout(timer);
+    if (panel) panel.classList.remove('on');
+    current = null;
+  }
+  document.addEventListener('mouseover', function (e) {
+    const el = e.target.closest(SEL);
+    if (!el || el === current) return;
+    hide();
+    timer = setTimeout(function () { show(el); }, DELAY);
+  });
+  document.addEventListener('mouseout', function (e) {
+    if (e.target.closest(SEL)) hide();
+  });
+  document.addEventListener('focusin', function (e) {
+    const el = e.target.closest(SEL);
+    if (el) { hide(); show(el); }
+  });
+  document.addEventListener('focusout', hide);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') hide(); });
+  window.addEventListener('scroll', hide, true);
+  window.addEventListener('resize', hide);
+  document.addEventListener('click', function (e) {
+    const el = e.target.closest(SEL);
+    if (!el) { hide(); return; }
+    if (current === el) { hide(); } else { hide(); show(el); }
+  });
+})();
+
 </script>
 </body>
 </html>

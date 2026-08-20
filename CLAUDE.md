@@ -20,6 +20,7 @@ against EVTX), driven by pytest.
 - `pipelines/` — pySigma processing pipelines (field maps for Splunk + Sentinel/Kusto)
 - `src/detkit/` — the tooling package. `attack` (tag parsing + vocabulary),
   `rules` (corpus loading), `validate`, `coverage`, `navigator`, `dashboard`,
+  `about` (the How-it-works page), `webui` (shared page chrome + tooltips),
   `vendored`, `cli`
 - `coverage/` — committed Navigator layer JSON + screenshot
 - `docs/` — detection lifecycle + ADRs
@@ -58,7 +59,7 @@ pinned in `.hayabusa-version` and read by CI — bump it there, nowhere else.
 meaning to; set `UV_PROJECT_ENVIRONMENT` to a scratch path to test the lock.
 
 ## Status
-15 authored detections. **111 tests.** Every rule is scored against labelled
+15 authored detections. **119 tests.** Every rule is scored against labelled
 events (122 of them) for precision/recall/FP rate, with per-rule thresholds that
 gate CI. `sigma check --fail-on-issues` passes at **0 issues**. All 15 rules
 convert to source-bound Splunk searches; the process_creation subset also
@@ -83,6 +84,32 @@ that should fire does not, the fields of events carrying the referenced fields.
 Use it **before** finalising rule logic. It replaced a scratchpad script plus a
 hand-downloaded evtx_dump; the `evtx` PyPI package is the same Rust parser and
 locks like any other dependency, so don't reintroduce the binary.
+
+## The site has two pages, and one of them is a standing obligation
+`detkit dashboard` writes **both** `site/index.html` (the coverage dashboard) and
+`site/about.html` (**"How it works"** — `src/detkit/about.py`). Both are
+drift-checked in CI.
+
+- **`site/about.html` must be updated in the same commit as any architecture
+  change.** New gate, new generator, different engine, changed metric, new ADR,
+  new limitation — it goes on that page. Can uses it to explain the project to
+  other people and to prepare for interviews, so a page describing a system that
+  no longer exists is worse than no page. Everything derivable from the corpus
+  (rule counts, the threshold table with justifications, the CI step list from
+  `pipeline.STEPS`, the ADR titles) is **generated**; the prose sections and
+  `GATE_PROSE` / `ADR_SUMMARY` are the parts a human has to touch.
+- **Every published number carries a hover tooltip** explaining its formula with
+  that rule's own counts, where the data came from, and the CI gate it must
+  clear. 600 ms delay, also on keyboard focus and tap. Shared chrome lives in
+  `src/detkit/webui.py` (`PALETTE`, `TIP_CSS`, `TIP_JS`, `nav()`); tooltip content
+  resolves from `data-tip` (literal HTML, escape it with `tip_attr`) or
+  `data-tipid` (a key into the page's `TIPS` map — used for JS-rendered cards, so
+  per-rule arithmetic never round-trips through attribute escaping).
+- A new metric on a card needs a tooltip, or it should not ship. The point of the
+  page is that no number is unexplained.
+- **No accuracy metric anywhere, on purpose.** `(TP+TN)/total` is dominated by
+  the authored malicious:benign ratio. Both the tooltip and the about page say so
+  explicitly — don't "helpfully" add it.
 
 ## Phase 1 hardening — what changed and why
 - **The suite could not fail.** No Hayabusa → all tests skipped → `pytest` exit 0.

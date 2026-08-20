@@ -173,6 +173,7 @@ jobs:
             vendored/report.json \
             evals/results.json \
             site/index.html \
+            site/about.html \
             README.md \
           || { echo "::error::generated artifacts are stale — run the generators and commit"; exit 1; }
       - uses: actions/upload-artifact@v7

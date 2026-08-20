@@ -113,3 +113,21 @@ def test_render_counts_only_vendored_only_techniques() -> None:
     html_out = render(rules, {"total_rules": 10, "convert": {"rate": 1.0},
                               "techniques": ["T1059.001", "T1105"]})
     assert "adds <b>1</b> further" in html_out
+
+
+def test_render_gives_every_headline_stat_a_provenance_tooltip() -> None:
+    """A number nobody can interrogate is decoration. Each tile explains itself."""
+    html_out = render([_card("one", metrics=SCORED)], {})
+    tips = html_out.count('class="stat" tabindex="0" data-tip=')
+    assert tips == 6
+    # Tooltip HTML is attribute-escaped, so the parser hands the markup back intact.
+    assert "data-tip=\"&lt;b class=&#x27;h&#x27;&gt;Rules written in this repo" in html_out
+
+
+def test_render_wires_a_tooltip_to_every_metric_on_a_card() -> None:
+    html_out = render([_card("one", metrics=SCORED)], {})
+    # The ids are bound when a card renders, so the template carries the wiring.
+    for key in ("fp", "recall", "precision", "events", "status", "level"):
+        assert "data-tipid=\"${r.stem}:" + key + '"' in html_out
+    # Built in JS from the rule's own counts, not from a static string.
+    assert "TIPS[r.stem + ':fp'] = fpTip(r);" in html_out

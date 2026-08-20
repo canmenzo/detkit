@@ -5,7 +5,7 @@
 > tested against real adversary telemetry, and blocked from merging if it drops
 > below a threshold it declares for itself.
 
-**[🔎 Live dashboard →](https://canmenzo.github.io/detection-engineering/)** — browsable, filterable view of every detection and its test status.
+**[🔎 Live dashboard →](https://canmenzo.github.io/detection-engineering/)** — browsable, filterable view of every detection and its test status. Hover any metric for how it is calculated, or read **[How it works →](https://canmenzo.github.io/detection-engineering/about.html)** for the method behind every number.
 
 ![ATT&CK coverage](coverage/coverage.png)
 
@@ -109,7 +109,7 @@ uv run detkit eval            # precision / recall / FP rate per rule
 uv run detkit vendored        # batch convert + coverage over the vendored SigmaHQ corpus
 uv run detkit coverage        # writes coverage/coverage.png
 uv run detkit navigator       # writes coverage/navigator_layer.json
-uv run detkit dashboard       # writes site/index.html (the live dashboard)
+uv run detkit dashboard       # writes site/index.html + site/about.html (the live dashboard)
 uv run detkit hayabusa        # install the pinned Hayabusa release
 uv run detkit probe <rule>    # run a rule against its pinned EVTX and show the hits
 

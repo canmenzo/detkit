@@ -54,6 +54,8 @@ select = [
 # Contains an embedded HTML/JS template; wrapping its lines would change the
 # bytes of the generated dashboard.
 "src/detkit/dashboard.py" = ["E501"]
+"src/detkit/about.py" = ["E501"]
+"src/detkit/webui.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"
