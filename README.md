@@ -5,144 +5,36 @@
 > tested against real adversary telemetry, and blocked from merging if it drops
 > below a threshold it declares for itself.
 
-**[🔎 Live dashboard →](https://canmenzo.github.io/detection-engineering/)** — browsable, filterable view of every detection and its test status. Hover any metric for how it is calculated, or read **[How it works →](https://canmenzo.github.io/detection-engineering/about.html)** for the method behind every number.
+**[🔎 Live dashboard →](https://canmenzo.github.io/detection-engineering/)** — every
+detection, its scores and its test status. Hover any number for how it was calculated.
+**[📖 How it works →](https://canmenzo.github.io/detection-engineering/about.html)** —
+the full method, written for a reader with no security background as well as one with.
 
 ![ATT&CK coverage](coverage/coverage.png)
 
-## Why this exists
+## In short
 
-Most "detection work" lives in a SIEM console and disappears when you log out.
-This repo treats detections like software: version-controlled rules, tests
-against real adversary telemetry, CI/CD, and an auto-generated coverage map.
+- **15 Sigma rules**, each ATT&CK-mapped, each proven to fire on a pinned public
+  EVTX capture of the real attack, each scored against hand-labelled benign
+  look-alikes.
+- **Two independent engines** check every rule — Hayabusa over real EVTX, a SQL
+  evaluator over labelled events. They must agree; disagreement fails the build.
+- **Every rule declares the score it must hit.** CI fails when one drops below its
+  own bar, and a lowered bar is rejected unless it carries a written justification.
+- **Every published number is generated**, then rebuilt in CI and diffed against
+  what is committed — including the unflattering ones, and including this file.
 
-The part that is genuinely uncommon is the measurement. Writing a rule is easy;
-showing that it catches the attack **and** stays quiet on the ordinary
-administrative activity it resembles is the actual job. Every number in this
-README is produced by the harness, not typed by hand — including the unflattering
-ones.
-
-## Two tiers: authored vs. vendored
-
-The corpus is deliberately split so quality and breadth are never conflated:
-
-- **`detections/`** — my own rules. Each is ATT&CK-mapped, scored against
-  labelled events, and pinned to real adversary EVTX. CI fails if any rule lacks
-  a fixture or drops below its declared thresholds. This is the showcase, and it
-  is what the headline coverage number counts.
-- **`vendored/`** — a pinned, clearly-attributed copy of the public
-  [SigmaHQ](https://github.com/SigmaHQ/sigma) Windows corpus (~2,400 rules, DRL 1.1).
-  **Not my work**, and not held to the fixture or eval gates. It runs through the
-  same conversion pipeline at scale (100% convert to Splunk) and shades the
-  coverage map. See [`vendored/README.md`](vendored/README.md).
-
-In the coverage matrix, **green** cells are authored, **blue** are vendored-only.
-The headline count is the green one; the vendored figure is stated separately
-rather than added to it.
-
-Two rules carry a *negative-only* EVTX fixture, and say so in their manifests. No
-public Sysmon EID 1 capture exists of a firewall being disabled or of an encoded
-PowerShell command line — every public one is Security 4688 or PowerShell 4104.
-What does exist is real telemetry those rules must stay **silent** on, which is
-worth pinning; their true-positive coverage comes from the eval harness.
-
-## How it works
-
-```
-                      ┌──────────────────────┐
-                      │  detections/*.yml    │   Sigma rules (authored here)
-                      └───────────┬──────────┘
-                                  │
-        ┌────────────────┬────────┴────────┬──────────────────┐
-        │                │                 │                  │
-   ┌────▼─────┐    ┌─────▼──────┐    ┌─────▼──────┐    ┌──────▼───────┐
-   │ discipline│    │  quality   │    │ real data  │    │  deployable  │
-   ├───────────┤    ├────────────┤    ├────────────┤    ├──────────────┤
-   │ yamllint  │    │ detkit eval│    │  Hayabusa  │    │ sigma convert│
-   │sigma check│    │            │    │  + pytest  │    │              │
-   │detkit     │    │ labelled   │    │  pinned    │    │ splunk_windows│
-   │ validate  │    │ events →   │    │  public    │    │ + repo source │
-   │           │    │ precision  │    │  EVTX      │    │   binding     │
-   │ ATT&CK tag│    │ recall     │    │  (sha256-  │    │ microsoft_xdr │
-   │ + fixture │    │ FP rate    │    │   pinned)  │    │               │
-   │ required  │    │            │    │            │    │ every query   │
-   │           │    │ per-rule   │    │ engine must│    │ must name its │
-   │           │    │ thresholds │    │ agree with │    │ source, or CI │
-   │           │    │ gate CI    │    │ the eval   │    │ fails         │
-   └─────┬─────┘    └─────┬──────┘    └─────┬──────┘    └──────┬───────┘
-         │                │                 │                  │
-         └────────────────┴────────┬────────┴──────────────────┘
-                                   │
-                      ┌────────────▼─────────────┐
-                      │ generated, drift-checked │
-                      │ coverage.png · dashboard │
-                      │ navigator layer · README │
-                      │ numbers · results.json   │
-                      └──────────────────────────┘
-
-  Two independent engines evaluate every rule — Hayabusa over real EVTX, and a
-  SQL evaluator over labelled events. They must agree; disagreement fails CI.
-```
-
-## Run it locally
-
-Dependencies are locked with [uv](https://docs.astral.sh/uv/); `uv sync` builds the
-exact environment CI uses, from `uv.lock`.
+One command reproduces all of it from a clean checkout:
 
 ```bash
-uv sync --all-extras          # exact locked environment, incl. dev tooling
-uv run detkit ci              # everything, in CI's order
+uv sync --all-extras && uv run detkit ci      # ~20s, the same sequence CI runs
 ```
-
-`detkit ci` installs the pinned Hayabusa release (verified against the SHA-256 in
-`.hayabusa-version` — an unverified binary download is not a reproducible build),
-then runs lint, type check, YAML lint, `sigma check`, the rule-discipline gate,
-the full test suite, the detection-quality eval, every generator, and finally
-checks that the committed artifacts still match what the generators produce. It
-is the same sequence CI runs, just serial instead of parallel. Or open the repo
-in the devcontainer, which does the setup for you.
-
-Individual steps:
-
-```bash
-uv run detkit validate        # metadata + fixture + ATT&CK tag discipline (authored only)
-uv run detkit eval            # precision / recall / FP rate per rule
-uv run detkit vendored        # batch convert + coverage over the vendored SigmaHQ corpus
-uv run detkit coverage        # writes coverage/coverage.png
-uv run detkit navigator       # writes coverage/navigator_layer.json
-uv run detkit dashboard       # writes site/index.html + site/about.html (the live dashboard)
-uv run detkit hayabusa        # install the pinned Hayabusa release
-uv run detkit probe <rule>    # run a rule against its pinned EVTX and show the hits
-
-uv run pytest -v              # unit tests + detection tests (fetches samples, runs Hayabusa)
-uv run ruff check .           # lint
-uv run mypy                   # type check (strict)
-```
-
-Hayabusa is a single binary from [Yamato Security](https://github.com/Yamato-Security/hayabusa);
-download a release and point `HAYABUSA_BIN` at it (keep it next to its bundled
-`rules/config`). Tests download pinned public EVTX samples on first run and cache
-them locally — see [`docs/adr/0002`](docs/adr/0002-fetch-pinned-samples.md).
-
-Without Hayabusa the detection tests skip so you can still work on the tooling;
-the harness-integrity tests always run. CI sets `DETKIT_REQUIRE_HAYABUSA=1`,
-which turns any skip into a build failure — a detection suite that did not
-execute must never report green.
 
 ## Detection quality
 
-Every rule is scored against a golden dataset of labelled events — true
-positives *and* benign look-alikes that differ only where the rule's logic is
-supposed to discriminate. `detkit eval` reports precision, recall and
-false-positive rate per rule; run it yourself and get the numbers below.
-
-Read **FP rate** first. Precision depends on the malicious-to-benign ratio in the
-case set, which is authored, not observed — so it is comparable between runs but
-is not a claim about a real event stream. FP rate (the share of benign events
-that alert) and recall do not move with that ratio.
-
-Thresholds are declared per rule and CI fails when one is missed. Lowering a bar
-is allowed; lowering it silently is not — the loader rejects a weakened threshold
-that carries no written justification.
+Read **FP rate** first: it is the share of benign events that alerted, and unlike
+precision it cannot be improved by writing more attack cases. Precision moves with
+the malicious-to-benign ratio of the case set, which is authored here, not observed.
 
 <!-- detkit:eval-table:start -->
 
@@ -168,97 +60,67 @@ that carries no written justification.
 
 <!-- detkit:eval-table:end -->
 
-Three results worth calling out rather than burying:
+Called out rather than buried:
 
-- **`proc_creation_win_encoded_powershell` misses a true positive** (recall 0.80).
-  `powershell.exe` accepts `-e` as an abbreviation of `-EncodedCommand`, and the
-  rule only tests `-enc`, `-encodedcommand` and `-ec`. The evasion is in the case
-  set as a known miss.
-- **`posh_ps_susp_encoded_powershell_scriptblock` fires on two thirds of benign
-  PowerShell** in its set. `-join` and `[Convert]::ToInt` are ordinary
-  administrative code, so it is shipped as `informational` — a hunting query, not
-  an alert.
 - **Two rules still alert on 100% of benign events.** `security_win_eventlog_cleared`
-  keeps that bar deliberately: a cleared log carries no evidence of *why* it was
-  cleared, so no discriminator exists, and the justification is a base-rate
-  argument (1102 does not happen on a healthy host). `security_win_local_user_created`
-  cannot make that argument — account creation is routine — so it is demoted to an
-  audit record. Both justifications are in their case files.
+  keeps that bar deliberately — a cleared log carries no evidence of *why*, so no
+  discriminator exists, and the argument for shipping it anyway is the base rate.
+  `security_win_local_user_created` cannot make that argument, so it is demoted to an
+  audit record. Both justifications live in their case files.
+- **Two rules that did have signal were fixed rather than excused.**
+  `security_win_service_installed` went from 0.43 precision / 1.00 FP rate to
+  **1.00 / 0.00**, and `security_win_scheduled_task_created` to **0.75 / 0.25**, by
+  keying on what the service or task actually executes.
+- **Measurement found a real evasion.** `powershell.exe` accepts `-e` as an
+  abbreviation of `-EncodedCommand`; the rule tested only the longer spellings.
+  Closing it took recall from 0.80 to 1.00 at the cost of one false positive in
+  seven — a trade the harness refused to accept until it was written down.
 
-Two rules that *did* have signal available were fixed rather than excused:
-`security_win_service_installed` went from 0.43 precision / 1.00 FP rate to
-**1.00 / 0.00**, and `security_win_scheduled_task_created` to **0.75 / 0.25**, by
-keying on what the service or task actually executes.
+## Known limits
 
-## Known gaps
+- **The benign events are authored, not captured.** They prove a rule's logic
+  discriminates; they say nothing about alert volume on a live estate.
+- **Sentinel coverage is partial, and it is a platform limit.** Splunk gets all 15
+  rules, source-bound. Microsoft XDR gets the `process_creation` subset —
+  Sentinel's `SecurityEvent` table has no `PreAuthType` column, so the Kerberos
+  rules cannot bind there without per-rule `EventData` parsing.
+- **Nothing here provisions a SIEM.** Rules compile to deployable, source-bound
+  queries; running them in a real estate is out of scope. See
+  [ADR 0004](docs/adr/0004-no-terraform.md) on why there is no Terraform.
 
-Stated plainly, because a reviewer will find them anyway:
+## Two tiers, never conflated
 
-- **The benign events are authored, not captured.** They measure whether a rule's
-  logic discriminates. They do not measure real-world base rates, so nothing here
-  predicts alert volume on a live estate.
-- **The evaluator coerces numeric strings**, matching Hayabusa's loose typing and
-  therefore being more lenient than a strictly-typed backend. See
-  [ADR 0003](docs/adr/0003-sql-evaluator-for-labelled-events.md).
-- **Thresholds do not gate the build yet.** The eval runs on every PR and reports;
-  per-rule bars and a regression ratchet are the next piece of work.
-- **Sentinel coverage is partial, and that is a platform limit, not an oversight.**
-  Splunk gets all 15 rules, source-bound. Microsoft XDR gets the
-  `process_creation` subset — Defender XDR has no table equivalent for the
-  Windows Security-log events the rest of the corpus targets. Sentinel's
-  `SecurityEvent` table does not surface every field these rules use (`PreAuthType`
-  is not a column), so those rules would need per-rule `EventData` parsing before
-  they could run there. The Kusto pipeline refuses to emit a query it cannot bind
-  to a table, which is the correct behaviour.
+`detections/` is my own work and carries every gate. `vendored/` is a pinned,
+attributed copy of the public [SigmaHQ](https://github.com/SigmaHQ/sigma) Windows
+corpus (~2,400 rules, DRL 1.1) — **not my work**, held to none of those gates. It
+runs through the same conversion pipeline at scale and shades the coverage map
+blue; green cells are authored. The headline number is the green one.
 
-## The detection lifecycle
+## Running individual steps
 
-Hypothesis → Sigma rule → EVTX fixtures (TP + benign) → tested with Hayabusa →
-converted to KQL/SPL → mapped to ATT&CK → shipped via PR.
-Full walkthrough in [`docs/detection_lifecycle.md`](docs/detection_lifecycle.md).
+```bash
+uv run detkit validate        # metadata + fixture + ATT&CK tag discipline
+uv run detkit eval            # precision / recall / FP rate per rule
+uv run detkit convert         # compile to Splunk + XDR, check every query is bound
+uv run detkit probe <rule>    # run a rule against its pinned EVTX and show the hits
+uv run detkit dashboard       # rebuild site/index.html + site/about.html
+uv run pytest -v              # unit + detection tests (fetches samples, runs Hayabusa)
+```
 
-## Why this design
+`detkit ci` installs the Hayabusa release pinned in `.hayabusa-version`, verified
+against its recorded SHA-256 — an unverified binary download is not a reproducible
+build. Locally, without Hayabusa, the detection tests skip so you can still work on
+the tooling; CI sets `DETKIT_REQUIRE_HAYABUSA=1`, which turns any skip into a
+failure. A detection suite that did not execute must never report green.
 
-Four choices here have real alternatives, so they are worth defending.
+## More
 
-**Why Sigma rather than writing SPL/KQL directly.** A rule written once and
-compiled to each platform stays reviewable as a single artifact, and the
-compilation step is itself a test — a rule that cannot be expressed against a
-target's schema is telling you something. That happened here: the Kusto pipeline
-refused to bind `PreAuthType`, because Sentinel's `SecurityEvent` table does not
-surface it. Writing KQL by hand would have hidden that until deployment.
-
-**Why two evaluation engines.** Hayabusa runs rules against real attacker EVTX;
-a SQL evaluator runs them against labelled events. Neither alone is enough —
-public EVTX contains almost no curated *benign look-alikes*, and hand-written
-events are not real telemetry. Running both and requiring agreement catches what
-either would miss alone, and it already has: a YAML formatting choice that
-Hayabusa silently refused to parse was accepted by both other tools, so the rule
-would have stopped running with nothing to show for it. See
-[ADR 0003](docs/adr/0003-sql-evaluator-for-labelled-events.md).
-
-**Why fetched samples instead of vendored ones.** Committing real attack captures
-means committing malware artifacts: endpoint AV quarantines them, and contributors
-cannot clone the repo cleanly. Pinning them by commit + SHA-256 and fetching at
-test time keeps the repo AV-safe and the samples immutable. See
-[ADR 0002](docs/adr/0002-fetch-pinned-samples.md).
-
-**Why no Terraform.** There is no cloud infrastructure to provision. A Terraform
-module with nothing behind it is a prop, and reviewers notice props. What
-"reproducible" actually means here is that a clean checkout produces an identical
-verified run, so that is what was built: locked dependencies, a checksum-verified
-Hayabusa, a devcontainer, and one command. See
-[ADR 0004](docs/adr/0004-no-terraform.md).
-
-## Coverage
-
-The matrix at the top is rendered directly from the rule corpus by
-[`detkit coverage`](src/detkit/coverage.py) — no external service needed. CI
-regenerates every published artifact and fails if the committed copies differ,
-so the dashboard cannot drift from the repo.
-
-For an interactive view, [`coverage/navigator_layer.json`](coverage/navigator_layer.json)
-can be loaded in the [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/)
-("Open Existing Layer" → "Upload from local"). The layer pins `attack: 16`; if the
-hosted Navigator has moved to a newer ATT&CK release it may refuse the file, which
-is why the committed PNG above is the canonical, dependency-free view.
+- **[How it works](https://canmenzo.github.io/detection-engineering/about.html)** —
+  the pipeline, both test layers, every metric and what it hides, all the CI gates,
+  and the objections this invites.
+- [`docs/detection_lifecycle.md`](docs/detection_lifecycle.md) — hypothesis → rule →
+  fixtures → tests → conversion → ATT&CK → ship.
+- [`docs/adr/`](docs/adr/) — the architecture decisions, including the rejected options.
+- [`coverage/navigator_layer.json`](coverage/navigator_layer.json) — loadable in the
+  [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) ("Open Existing
+  Layer" → "Upload from local").

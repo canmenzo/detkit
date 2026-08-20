@@ -210,6 +210,7 @@ def collect() -> dict[str, Any]:
     }
 
 
+
 def render(data: dict[str, Any]) -> str:
     results = data["results"]
     n_rules = len(data["rules"])
@@ -245,12 +246,15 @@ def render(data: dict[str, Any]) -> str:
 <title>How it works — Detection-as-Code</title>
 <style>
 {PALETTE}
+  html {{ scroll-behavior:smooth; }}
   header {{ max-width:860px; margin:0 auto; padding:36px 24px 4px; }}
   h1 {{ margin:0 0 8px; font-size:28px; }}
   .lede {{ color:var(--muted); font-size:15.5px; }}
   main {{ max-width:860px; margin:0 auto; padding:0 24px 80px; }}
-  section {{ margin:38px 0 0; }}
-  h2 {{ font-size:20px; margin:0 0 4px; scroll-margin-top:60px; }}
+  /* The nav is sticky, so an anchored section has to clear it or the heading
+     lands underneath the bar. */
+  section {{ margin:44px 0 0; scroll-margin-top:76px; }}
+  h2 {{ font-size:20px; margin:0 0 4px; scroll-margin-top:76px; }}
   h2 .n {{ color:var(--muted); font-weight:400; font-size:15px; margin-right:8px; }}
   h3 {{ font-size:15px; margin:22px 0 6px; }}
   p {{ margin:10px 0; }}
@@ -259,6 +263,15 @@ def render(data: dict[str, Any]) -> str:
   .toc a {{ font-size:13px; text-decoration:none; color:var(--muted); background:var(--card);
             border:1px solid var(--line); border-radius:20px; padding:5px 11px; }}
   .toc a:hover {{ color:var(--fg); border-color:var(--accent); }}
+  .plain {{ border-left:3px solid #1f6feb; background:#12233d33; border-radius:0 8px 8px 0;
+            padding:12px 16px; margin:16px 0; }}
+  .plain .tagp {{ display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:.09em;
+                  color:var(--accent); margin-bottom:6px; font-weight:600; }}
+  .plain p {{ margin:8px 0; color:#dbe3ea; }}
+  .plain p:first-of-type {{ margin-top:0; }}
+  .plain p:last-child {{ margin-bottom:0; }}
+  .analogy {{ font-style:italic; color:var(--muted); border-left:3px solid var(--warn);
+              padding-left:13px; margin:14px 0; font-size:14px; }}
   .box {{ background:var(--card); border:1px solid var(--line); border-radius:10px;
           padding:14px 16px; margin:16px 0; }}
   .box.why {{ border-left:3px solid var(--accent); }}
@@ -283,6 +296,8 @@ def render(data: dict[str, Any]) -> str:
   td.num {{ text-align:right; font-variant-numeric:tabular-nums; }}
   td.num.bad {{ color:var(--bad); font-weight:600; }}
   td.bar {{ color:var(--muted); font-size:12px; white-space:nowrap; }}
+  td.was {{ color:var(--muted); }}
+  td.now {{ color:var(--ok); }}
   tr.why td {{ color:var(--muted); font-size:12.5px; border-bottom:1px solid var(--line);
                padding-top:0; }}
   code {{ background:#1c2129; border-radius:4px; padding:1px 5px; font-size:12.5px; }}
@@ -291,7 +306,8 @@ def render(data: dict[str, Any]) -> str:
            font-family:ui-monospace,SFMono-Regular,Consolas,monospace; font-size:13px; }}
   .calc span {{ color:var(--muted); }}
   ul.spaced li {{ margin:8px 0; }}
-  ol.spaced li {{ margin:8px 0; }}
+  ol.spaced li {{ margin:10px 0; }}
+  ol.spaced li b {{ color:var(--fg); }}
   .qa dt {{ font-weight:600; margin:16px 0 4px; }}
   .qa dd {{ margin:0; color:#c9d1d9; }}
   footer {{ max-width:860px; margin:0 auto; padding:24px; color:var(--muted);
@@ -307,9 +323,13 @@ def render(data: dict[str, Any]) -> str:
   blocked from merging when they fall below a bar they declare for themselves. This page is the
   method behind every number on the <a href="index.html">coverage dashboard</a> — what is
   measured, how it is measured, and what it deliberately does not claim.</p>
+  <p class="lede">It is written on two levels at once. The blue blocks explain each idea in
+  ordinary language with no security background assumed; the text around them is the precise
+  version. Read either one, or both.</p>
   <div class="toc">
     <a href="#problem">The problem</a>
     <a href="#vocabulary">Vocabulary</a>
+    <a href="#story">Where this started</a>
     <a href="#pipeline">The pipeline</a>
     <a href="#layers">Two test layers</a>
     <a href="#metrics">The metrics</a>
@@ -325,11 +345,19 @@ def render(data: dict[str, Any]) -> str:
 
 <section id="problem">
   <h2><span class="n">01</span>The problem this solves</h2>
-  <p>A detection rule is a piece of logic that reads security telemetry and raises an alert. In
-  most organisations those rules live inside a SIEM's web console: edited in a text box, deployed
-  by whoever was on shift, with no history, no tests and no measurement. Nobody can answer the two
-  questions that matter — <b>does this rule still fire on the attack it was written for</b>, and
-  <b>how much noise does it cost the analyst reading the queue</b>.</p>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>Windows computers write down almost everything that happens on them, in files called
+    event logs. When an attacker breaks in, they leave traces there. A <b>detection rule</b> is a
+    written recipe that says: if you ever see this pattern in the logs, shout.</p>
+    <p>Anyone can write such a recipe. What almost nobody does is prove theirs works — that it
+    catches the attack <i>and</i> stays quiet during ordinary Tuesday-afternoon admin work. This
+    repository is a set of rules plus the machinery that produces that proof, automatically, every
+    time anything changes.</p>
+  </div>
+  <p>In most organisations detection rules live inside a SIEM's web console: edited in a text box,
+  deployed by whoever was on shift, with no history, no tests and no measurement. Nobody can answer
+  the two questions that matter — <b>does this rule still fire on the attack it was written
+  for</b>, and <b>how much noise does it cost the analyst reading the queue</b>.</p>
   <p>Detection-as-Code is the answer software engineering already found: put the logic in git, make
   every change reviewable, and gate it on automated tests. This repo is a working implementation of
   that idea over {n_rules} rules I wrote myself, plus the tooling that keeps them honest.</p>
@@ -344,29 +372,43 @@ def render(data: dict[str, Any]) -> str:
 
 <section id="vocabulary">
   <h2><span class="n">02</span>Vocabulary</h2>
-  <p>Five terms carry most of the page.</p>
+  <p>Nothing below this point needs any term that is not defined here.</p>
   <dl class="grid">
+    <dt>Detection rule</dt>
+    <dd>A written condition over log data that raises an alert when it matches. "Shout if a program
+    starts with a scrambled command line" is a detection rule.</dd>
     <dt>Sigma</dt>
-    <dd>A vendor-neutral YAML format for detection rules. You write the logic once and compile it to
-    whichever platform you run — Splunk, Sentinel, Elastic. It is to detections roughly what
-    Dockerfiles are to environments.</dd>
+    <dd>A vendor-neutral YAML format for writing those rules. You write the logic once and compile
+    it to whichever platform you run — Splunk, Sentinel, Elastic. Like writing a recipe in a
+    universal language and having it auto-translated into any kitchen's local terms.</dd>
     <dt>EVTX</dt>
-    <dd>The binary file format of Windows event logs. Public repositories publish EVTX captured
-    while real attacker tooling ran, which is what makes it possible to test a rule against
+    <dd>The binary file format of Windows event logs. Public repositories publish EVTX <i>captured
+    while real attacker tooling ran</i>, which is what makes it possible to test a rule against
     genuine telemetry rather than something I invented.</dd>
+    <dt>Event ID</dt>
+    <dd>Windows numbers every kind of event. 4688 = a program started. 1102 = the security log was
+    cleared. 4697 = a service was installed. Attackers trigger these too, which is why they are
+    worth watching — and why matching on the number <i>alone</i> is not a detection.</dd>
     <dt>MITRE ATT&amp;CK</dt>
     <dd>The industry catalogue of adversary behaviour — tactics (the goal, e.g. Credential Access)
     and techniques (the method, e.g. T1003.001 LSASS Memory). Tagging rules with technique IDs is
     what turns a pile of rules into a coverage map. This repo validates tags against release
     <b>{attack_version()}</b>.</dd>
+    <dt>False positive</dt>
+    <dd>The rule shouted and nothing bad had happened. This is <i>the</i> problem in security
+    operations: a rule with too many false positives gets ignored, and an ignored rule might as
+    well not exist.</dd>
     <dt>Hayabusa</dt>
     <dd>A fast Sigma engine that runs rules directly against EVTX files. Here it is the test
-    harness: pytest hands it a rule and a sample and asserts on whether it hit. Pinned at
+    harness: pytest hands it a rule and a captured attack and asserts on whether it hit. Pinned at
     <b>{hayabusa_version()}</b>.</dd>
     <dt>pySigma</dt>
     <dd>The Python library that parses Sigma and compiles it to backends. It does the conversion to
     Splunk and KQL, and — through its SQLite backend — the scoring of rules against labelled
     events.</dd>
+    <dt>CI</dt>
+    <dd>Continuous integration: a robot on GitHub's machines that re-runs every check on every
+    change. If anything breaks it goes red. It is what stops "it worked on my laptop".</dd>
   </dl>
   <p>Four counts describe every rule's performance, and everything else is derived from them:
   <b>TP</b> (malicious event, rule fired), <b>FP</b> (benign event, rule fired anyway),
@@ -374,11 +416,80 @@ def render(data: dict[str, Any]) -> str:
   correctly silent).</p>
 </section>
 
+<section id="story">
+  <h2><span class="n">03</span>Where this started</h2>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>This repo did not begin in the state described on this page. It began as a normal portfolio
+    project that looked fine from the outside, and was then audited on purpose, without mercy. Six
+    things were wrong, and every one of them is the kind of thing that quietly makes a security
+    project a decoration rather than a control.</p>
+    <p>All six are fixed. They are written down here rather than deleted from the history, because
+    the interesting part of the project is not that it is tidy now — it is what it took to find out
+    that it wasn't.</p>
+  </div>
+  <ol class="spaced">
+    <li><b>The tests could pass while testing nothing.</b> The suite needed an external engine. When
+    that engine was missing the tests did not fail — they skipped, and the run reported success. The
+    repository's single biggest claim was guarded by nothing at all.
+    <div class="analogy">A smoke alarm that reports "all clear" when its battery has been
+    removed.</div></li>
+    <li><b>Nobody was measuring whether the rules were any good.</b> There were 16 test cases. 15
+    asked "here is an attack, does it fire?". One asked "here is something harmless, does it stay
+    quiet?" — and that one used a different kind of log entirely, so it proved nothing. There was
+    zero evidence about false positives. For detection work that is a chef who never tastes the
+    food.</li>
+    <li><b>Four of the fifteen rules were not detections.</b> They alerted whenever a given event ID
+    appeared, with no further logic. That is not detecting anything; it is forwarding an event and
+    making a human decide.</li>
+    <li><b>The quality checker was switched off.</b> Sigma's own linter was running, reporting 20
+    problems (two serious), and the build was configured to ignore all of them and pass.</li>
+    <li><b>The supporting code had no safety net.</b> ~800 lines of Python with no tests, no type
+    checking, no dependency locking — in a repository whose entire pitch is treating security
+    content like professional software.</li>
+    <li><b>The compiled output would not have run anywhere.</b> Rules were auto-translated to Splunk
+    and checked for grammar, but not for whether the result was usable: wrong field names, and no
+    statement of which logs to search. Grammatically valid nonsense.</li>
+  </ol>
+  <h3>What changed</h3>
+  <table>
+    <tr><th>&nbsp;</th><th>at the audit</th><th>now</th></tr>
+    <tr><td>Test suite</td><td class="was">15 tests, all silently skippable</td>
+        <td class="now">119 tests; a skipped detection test fails the build</td></tr>
+    <tr><td>Rule quality</td><td class="was">unmeasured</td>
+        <td class="now">{data['n_cases']} labelled events, every rule scored, thresholds enforced</td></tr>
+    <tr><td>Rules alerting on<br>100% of benign traffic</td><td class="was">4, unnoticed</td>
+        <td class="now">2, both with a written justification</td></tr>
+    <tr><td>Sigma linter</td><td class="was">20 problems, ignored</td>
+        <td class="now">0 problems, and it blocks the build</td></tr>
+    <tr><td>Python tooling</td><td class="was">no tests, no types, unlocked deps</td>
+        <td class="now">packaged CLI, strict typing, locked and reproducible</td></tr>
+    <tr><td>Compiled queries</td><td class="was">would not have run</td>
+        <td class="now">all {n_rules} bound to a real source, checked in CI</td></tr>
+    <tr><td>Published numbers</td><td class="was">typed by hand</td>
+        <td class="now">generated; the build fails if they go stale</td></tr>
+  </table>
+  <div class="box why">
+    <h4>Things measurement found that reading could not</h4>
+    <p>Two examples, both invisible until there were numbers.</p>
+    <p><b>A real evasion.</b> PowerShell accepts <code>-e</code> as an abbreviation of
+    <code>-EncodedCommand</code>. The rule looked for the longer spellings only, so
+    <code>powershell -e &lt;blob&gt;</code> walked straight past it. Fixing it moved recall from
+    0.80 to 1.00 and cost one false positive out of seven benign cases — and the harness
+    <i>blocked the change</i> until that trade was written down.</p>
+    <p style="margin-bottom:0"><b>A rule that had silently stopped running.</b> Writing a rule's
+    condition across multiple YAML lines is accepted by two of the three engines involved and
+    rejected by the third, which reports only "1 parsing error" without naming the rule. The rule
+    stops running and nothing says so. There is now a check for exactly that.</p>
+  </div>
+</section>
+
 <section id="pipeline">
-  <h2><span class="n">03</span>The pipeline</h2>
-  <p>Everything from a rule idea to the published map runs through these stages. A local
-  <code>detkit ci</code> executes them in exactly the order CI does, so a green laptop and a green
-  build mean the same thing.</p>
+  <h2><span class="n">04</span>The pipeline</h2>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>Six stages take a rule from an idea to the published map. Each one can stop the whole thing,
+    and one command runs all of them the same way the robot does — so "it works on my machine" and
+    "the build is green" mean the same sentence.</p>
+  </div>
   <div class="stages">
     <div class="stage"><span class="num">01</span><b>Author</b><code>detections/*.yml</code>
       <p>A Sigma rule with required metadata and ATT&amp;CK tags. <code>detkit probe</code> runs the
@@ -409,9 +520,17 @@ def render(data: dict[str, Any]) -> str:
 </section>
 
 <section id="layers">
-  <h2><span class="n">04</span>Two test layers, two different questions</h2>
-  <p>Most detection repos have one of these. Having both is the point: they fail in different ways,
-  and neither can cover for the other.</p>
+  <h2><span class="n">05</span>Two test layers, two different questions</h2>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>There are two completely separate ways a rule is checked here, because there are two
+    different ways a rule can be wrong.</p>
+    <p>The first replays a <b>real recorded attack</b> and demands the rule fire. That catches a
+    rule written against logs the author imagined rather than the ones Windows actually produces —
+    the classic beginner mistake, and one that never shows up in your own tests.</p>
+    <p>The second feeds the rule <b>hand-written examples, some attacks and some deliberately
+    similar harmless activity</b>, and counts what it does. A real attack recording cannot do this:
+    it has no harmless counterpart inside it to stay quiet on.</p>
+  </div>
   <table>
     <tr><th>&nbsp;</th><th>EVTX fixture tests</th><th>Labelled-event scoring</th></tr>
     <tr><td><b>Question</b></td>
@@ -438,7 +557,17 @@ def render(data: dict[str, Any]) -> str:
 </section>
 
 <section id="metrics">
-  <h2><span class="n">05</span>The metrics, and what each one hides</h2>
+  <h2><span class="n">06</span>The metrics, and what each one hides</h2>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>Three numbers describe a rule, and they answer different questions:</p>
+    <p><b>Recall</b> — of the real attacks, how many did it catch? Missing one is the expensive
+    failure.<br>
+    <b>FP rate</b> — of the harmless activity, how often did it shout anyway?<br>
+    <b>Precision</b> — of everything it shouted about, how much was real?</p>
+    <p>The trap is that precision can be improved without touching the rule, just by writing more
+    attack examples and fewer harmless ones. Recall and FP rate cannot be gamed that way, so they
+    lead and precision trails.</p>
+  </div>
   <p>Every rule card on the dashboard carries four figures. Hovering any of them shows this same
   arithmetic with that rule's own counts filled in.</p>
 
@@ -486,14 +615,17 @@ def render(data: dict[str, Any]) -> str:
 </section>
 
 <section id="thresholds">
-  <h2><span class="n">06</span>Every rule declares its own bar</h2>
-  <p>A global threshold would be a lie: a rule watching for Impacket's WMI output should be near
-  perfect, and a rule watching for Defender exclusions being added cannot be, because sanctioned
-  administration looks identical from the event alone. So each rule declares the bar it must clear
-  in its own case file, and CI fails when it drops below it.</p>
+  <h2><span class="n">07</span>Every rule declares its own bar</h2>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>Rules are not equally hard. Detecting a specific hacking tool should be near perfect;
+    detecting "someone added an antivirus exclusion" cannot be, because a system administrator does
+    exactly the same thing for legitimate reasons and the log entry looks identical.</p>
+    <p>So each rule states, in its own file, the score it has to reach — and the build fails if it
+    drops below it. Setting an easier bar is allowed. Setting one <i>silently</i> is not: without a
+    written reason, the file is rejected. Every one of those reasons is printed below.</p>
+  </div>
   <p>The defaults are strict — precision &ge; 0.90, recall = 1.00, FP rate &le; 0.10. Anything more
-  lenient is <b>rejected at load time unless it carries a written justification</b>. Lowering the
-  bar is allowed; lowering it silently is how a gate stops meaning anything. {len(data['lenient'])}
+  lenient is <b>rejected at load time unless it carries a written justification</b>. {len(data['lenient'])}
   of {n_scored} rules currently run on a justified lenient threshold.</p>
   <table>
     <tr><th>rule</th><th>precision</th><th>recall</th><th>FP rate</th><th>declared bar</th></tr>
@@ -504,7 +636,13 @@ def render(data: dict[str, Any]) -> str:
 </section>
 
 <section id="gates">
-  <h2><span class="n">07</span>What CI actually checks</h2>
+  <h2><span class="n">08</span>What CI actually checks</h2>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>Every one of the checks below runs on every change, on GitHub's machines, and any single one
+    of them can stop the change from landing. The last row is the unusual one: the robot rebuilds
+    every published chart, table and page from scratch and compares them to what is committed. If
+    they differ, someone changed a rule without refreshing the numbers, and the build fails.</p>
+  </div>
   <p>One command runs all of it: <code>uv sync --all-extras &amp;&amp; uv run detkit ci</code>, about
   twenty seconds from a clean checkout. The workflow runs the same steps split across parallel jobs.</p>
   <table>
@@ -521,9 +659,12 @@ def render(data: dict[str, Any]) -> str:
 </section>
 
 <section id="decisions">
-  <h2><span class="n">08</span>Design decisions on record</h2>
-  <p>Architecture decisions are written down as ADRs in <code>docs/adr/</code>, with the options
-  considered and the reason for the choice — including the ones that were rejected.</p>
+  <h2><span class="n">09</span>Design decisions on record</h2>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>Every significant choice is written down with the options that were considered and the reason
+    one won — including the ones that were rejected. Knowing when <i>not</i> to add something is
+    half of engineering, and it is invisible unless you record it.</p>
+  </div>
   <ul class="spaced">{adrs}</ul>
   <h3>Other choices worth stating</h3>
   <ul class="spaced">
@@ -531,7 +672,8 @@ def render(data: dict[str, Any]) -> str:
     Windows corpus ({data['vend_rules']:,} rules, {vend_rate_pct} convert rate) is run through the
     same conversion pipeline and contributes {data['vend_tech']} further techniques to the map — but
     it is reported separately and held to none of the fixture or eval gates. Folding it into the
-    headline would turn {n_rules} authored rules into a four-figure number that means nothing.</li>
+    headline would turn {n_rules} authored rules into a four-figure number that means nothing.
+    The headline is deliberately the smaller, true number.</li>
     <li><b>Published artifacts are diffed, not trusted.</b> Every generated file is rebuilt in CI and
     compared to what is committed. There is no ratchet file and no manual metric anywhere: if a rule
     changes and the numbers move, the build fails until the new numbers are committed deliberately.</li>
@@ -543,7 +685,11 @@ def render(data: dict[str, Any]) -> str:
 </section>
 
 <section id="limits">
-  <h2><span class="n">09</span>Honest limits</h2>
+  <h2><span class="n">10</span>Honest limits</h2>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>Everything below is a genuine weakness, written here on purpose. A limitation somebody else
+    discovers reads very differently from one you documented yourself.</p>
+  </div>
   <div class="box limit">
     <h4>What this does not prove</h4>
     <ul class="spaced" style="margin-bottom:0">
@@ -571,7 +717,7 @@ def render(data: dict[str, Any]) -> str:
 </section>
 
 <section id="repo">
-  <h2><span class="n">10</span>Repo map</h2>
+  <h2><span class="n">11</span>Repo map</h2>
   <dl class="grid">
     <dt><code>detections/</code></dt><dd>The {n_rules} authored Sigma rules. Everything is gated on
       these.</dd>
@@ -593,7 +739,7 @@ def render(data: dict[str, Any]) -> str:
 </section>
 
 <section id="faq">
-  <h2><span class="n">11</span>Questions this invites</h2>
+  <h2><span class="n">12</span>Questions this invites</h2>
   <dl class="qa">
     <dt>Why measure detections at all — isn't a rule either right or wrong?</dt>
     <dd>No. Every detection is a trade between missing the attack and drowning the analyst, and the

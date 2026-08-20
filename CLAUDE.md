@@ -107,6 +107,15 @@ drift-checked in CI.
   per-rule arithmetic never round-trips through attribute escaping).
 - A new metric on a card needs a tooltip, or it should not ship. The point of the
   page is that no number is unexplained.
+- The about page is written **on two levels at once**: `.plain` "in plain English"
+  blocks for a reader with no security background, precise prose around them.
+  **Not a toggle or a difficulty filter** — Can rejected that explicitly. One page,
+  both levels. Section 03 "Where this started" carries the original audit and the
+  before/after table; it replaced a plain-English text file that used to live on
+  Can's Desktop and has since been deleted. Don't recreate that file.
+- **README is deliberately short** (a summary an interviewer can skim). Depth goes
+  on the about page, not back into the README. The `detkit:eval-table` markers must
+  survive any edit.
 - **No accuracy metric anywhere, on purpose.** `(TP+TN)/total` is dominated by
   the authored malicious:benign ratio. Both the tooltip and the about page say so
   explicitly — don't "helpfully" add it.
