@@ -138,7 +138,7 @@
   for</b>, and <b>how much noise does it cost the analyst reading the queue</b>.</p>
   <p>Detection-as-Code is the answer software engineering already found: put the logic in git, make
   every change reviewable, and gate it on automated tests. This repo is a working implementation of
-  that idea over 19 rules I wrote myself, plus the tooling that keeps them honest.</p>
+  that idea over 20 rules I wrote myself, plus the tooling that keeps them honest.</p>
   <div class="box why">
     <h4>The claim being made</h4>
     <p style="margin:0">Not "I can write a Sigma rule." Anyone can. The claim is: every rule here is
@@ -234,7 +234,7 @@
     <tr><td>Test suite</td><td class="was">15 tests, all silently skippable</td>
         <td class="now">119 tests; a skipped detection test fails the build</td></tr>
     <tr><td>Rule quality</td><td class="was">unmeasured</td>
-        <td class="now">158 labelled events, every rule scored, thresholds enforced</td></tr>
+        <td class="now">172 labelled events, every rule scored, thresholds enforced</td></tr>
     <tr><td>Rules alerting on<br>100% of benign traffic</td><td class="was">4, unnoticed</td>
         <td class="now">2, both with a written justification</td></tr>
     <tr><td>Sigma linter</td><td class="was">20 problems, ignored</td>
@@ -242,7 +242,7 @@
     <tr><td>Python tooling</td><td class="was">no tests, no types, unlocked deps</td>
         <td class="now">packaged CLI, strict typing, locked and reproducible</td></tr>
     <tr><td>Compiled queries</td><td class="was">would not have run</td>
-        <td class="now">all 19 bound to a real source, checked in CI</td></tr>
+        <td class="now">all 20 bound to a real source, checked in CI</td></tr>
     <tr><td>Published numbers</td><td class="was">typed by hand</td>
         <td class="now">generated; the build fails if they go stale</td></tr>
   </table>
@@ -317,8 +317,8 @@
     <tr><td><b>Engine</b></td><td>Hayabusa v3.9.0, over real EVTX</td>
         <td>pySigma SQLite backend, over JSON events</td></tr>
     <tr><td><b>Data</b></td>
-        <td>16 public captures pinned by URL and SHA-256</td>
-        <td>158 events hand-written and labelled, each with a stated reason</td></tr>
+        <td>18 public captures pinned by URL and SHA-256</td>
+        <td>172 events hand-written and labelled, each with a stated reason</td></tr>
     <tr><td><b>Catches</b></td>
         <td>Wrong channel, wrong field name, a rule that cannot run at all</td>
         <td>Logic too broad, logic too narrow, a rule that alerts on everything</td></tr>
@@ -326,8 +326,8 @@
         <td>A rule that fires on the sample <i>and</i> on everything else</td>
         <td>A rule matching a field Windows never actually emits</td></tr>
     <tr><td><b>Coverage</b></td>
-        <td>15 of 19 rules (0 declared exempt)</td>
-        <td>19 of 19 rules</td></tr>
+        <td>16 of 20 rules (0 declared exempt)</td>
+        <td>20 of 20 rules</td></tr>
   </table>
   <p>The two engines are also a cross-check on each other. Two independent implementations of Sigma
   semantics agreeing on the same rule is worth more than trusting either alone; where they
@@ -394,7 +394,7 @@
   cases and one malicious one, and a rule that never fires at all scores 0.90. It would measure the
   dataset rather than the rule, which is precisely the failure this harness was built to avoid.</p>
 
-  <h3>Worked example — <code>proc_creation_win_encoded_powershell</code></h3><p>5 malicious and 7 benign events are labelled for this rule. It fired on 5 of the malicious ones and 1 of the benign ones.</p><span class="calc">FP rate &nbsp;= 1 &divide; (1 + 6) = 0.14<br>recall &nbsp;&nbsp;= 5 &divide; (5 + 0) = 1.00<br>precision = 5 &divide; (5 + 1) = 0.83</span>
+  <h3>Worked example — <code>posh_ps_obfuscated_payload_execution</code></h3><p>5 malicious and 9 benign events are labelled for this rule. It fired on 5 of the malicious ones and 1 of the benign ones.</p><span class="calc">FP rate &nbsp;= 1 &divide; (1 + 8) = 0.11<br>recall &nbsp;&nbsp;= 5 &divide; (5 + 0) = 1.00<br>precision = 5 &divide; (5 + 1) = 0.83</span>
 
   <div class="box why">
     <h4>How the labelled events are built</h4>
@@ -421,8 +421,8 @@
     written reason, the file is rejected. Every one of those reasons is printed below.</p>
   </div>
   <p>The defaults are strict — precision &ge; 0.90, recall = 1.00, FP rate &le; 0.10. Anything more
-  lenient is <b>rejected at load time unless it carries a written justification</b>. 15
-  of 19 rules currently run on a justified lenient threshold.</p>
+  lenient is <b>rejected at load time unless it carries a written justification</b>. 16
+  of 20 rules currently run on a justified lenient threshold.</p>
   <table>
     <tr><th>rule</th><th>precision</th><th>recall</th><th>FP rate</th><th>declared bar</th></tr>
     <tr><td><code>entra_audit_app_credential_added</code></td><td class='num'>0.60</td><td class='num'>1.00</td><td class='num'>0.40</td><td class='bar'>p&ge;0.55 &middot; r&ge;1.00 &middot; fp&le;0.40</td></tr>
@@ -434,8 +434,10 @@
 <tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> One benign case is deliberately unwinnable: a multifunction printer relaying over Authenticated SMTP is indistinguishable from an attacker using the same protocol with a stolen service-account password. That is an allow-list problem, not a logic problem, and the rule says so in its falsepositives.</td></tr>
 <tr><td><code>posh_ps_defender_tamper</code></td><td class='num'>0.71</td><td class='num'>1.00</td><td class='num'>0.40</td><td class='bar'>p&ge;0.65 &middot; r&ge;1.00 &middot; fp&le;0.45</td></tr>
 <tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> Sanctioned exclusion management is genuinely indistinguishable from an attacker carving out a staging directory when all you have is the 4104 event. Separating them needs the author identity and the excluded path checked against an approved list, which is enrichment the rule cannot do alone.</td></tr>
+<tr><td><code>posh_ps_obfuscated_payload_execution</code></td><td class='num'>0.83</td><td class='num'>1.00</td><td class='num'>0.11</td><td class='bar'>p&ge;0.80 &middot; r&ge;1.00 &middot; fp&le;0.15</td></tr>
+<tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> One benign case fires and is expected to: a packaging script that decodes a URL from base64 and then fetches it is, at the level of the script block, the same behaviour as a stager. Separating them needs context this telemetry does not carry (script path reputation, destination host), so the cost is one declared false positive per baselined bootstrap script rather than a weaker rule. Measured FP rate is 0.11 against the sibling rule&#x27;s 0.67 on the same benign events.</td></tr>
 <tr><td><code>posh_ps_susp_encoded_powershell_scriptblock</code></td><td class='num'>0.50</td><td class='num'>1.00</td><td class='num'>0.67</td><td class='bar'>p&ge;0.45 &middot; r&ge;1.00 &middot; fp&le;0.70</td></tr>
-<tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> A token-frequency heuristic, not a detection. -join and [Convert]::ToInt are ordinary PowerShell, so two thirds of benign administrative script blocks fire. Demoted to informational and kept as a hunting query: useful for ranking script blocks by suspiciousness, unusable as a page. Tightening it means scoring multiple tokens together rather than matching any one of them.</td></tr>
+<tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> A token-frequency heuristic, not a detection. -join and [Convert]::ToInt are ordinary PowerShell, so two thirds of benign administrative script blocks fire. Demoted to informational and kept as a hunting query: useful for ranking script blocks by suspiciousness, unusable as a page. The alerting tier is posh_ps_obfuscated_payload_execution, whose benign half is this rule&#x27;s four false alarms — it scores 0.11 FP rate on them by requiring an execution or ingress sink alongside the primitive.</td></tr>
 <tr><td><code>proc_creation_win_certutil_download_decode</code></td><td class='num'>0.67</td><td class='num'>1.00</td><td class='num'>0.33</td><td class='bar'>p&ge;0.60 &middot; r&ge;1.00 &middot; fp&le;0.40</td></tr>
 <tr class='why'><td colspan='5'><b>Why the bar is where it is:</b> -encode and -decode are legitimate certutil verbs used by PKI enrolment scripts and management agents. Dropping them would raise precision but lose payload-staging coverage, which is the more valuable half of this rule. Keeping them and allow-listing the known callers is the right trade.</td></tr>
 <tr><td><code>proc_creation_win_encoded_powershell</code></td><td class='num'>0.83</td><td class='num'>1.00</td><td class='num'>0.14</td><td class='bar'>p&ge;0.80 &middot; r&ge;1.00 &middot; fp&le;0.20</td></tr>
@@ -462,6 +464,35 @@
   </table>
   <p class="muted">Thresholds live in the case files, not in the Sigma rules, so the rules stay
   portable — a threshold is a property of this harness, not of the detection.</p>
+
+  <h3>Some rules are hunting queries, not alerts</h3>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>Attackers scramble their PowerShell so it does not read as an attack. The obvious rule is
+    "alert when a script looks scrambled" — and measuring it showed that <b>two thirds of ordinary
+    admin scripts look scrambled too</b>, because joining text together and converting numbers are
+    everyday operations.</p>
+    <p>Deleting the rule would be wrong: scrambling really is a signal. So it was demoted. It now
+    ranks script blocks for a human to look through — a <b>hunting query</b> — while a second rule
+    pages someone only when scrambling appears <i>together with</i> something that runs or downloads
+    the result. Same signal, two products, two severities.</p>
+  </div>
+  <table>
+    <tr><th>rule</th><th>asks</th><th>severity</th><th>FP rate</th></tr>
+    <tr><td><code>posh_ps_susp_encoded_powershell_scriptblock</code></td>
+        <td>which script blocks are worth a human's attention?</td>
+        <td>informational</td><td class="num bad">0.67</td></tr>
+    <tr><td><code>posh_ps_obfuscated_payload_execution</code></td>
+        <td>which ones should wake someone up?</td>
+        <td>high</td><td class="num">0.11</td></tr>
+  </table>
+  <p>The second rule's benign cases <b>are</b> the first rule's false alarms, so the pair is held
+  together by its own gate: if the alerting tier ever starts firing on <code>-join</code> building
+  a file path, CI fails. On the real Invoke-Obfuscation capture both rules see the same 66 script
+  blocks; the hunting tier flags most of them, the alerting tier flags the one that also calls
+  <code>iex</code>.</p>
+  <p class="muted">A false-positive rate of 0.67 is a failure for an alert and
+  perfectly reasonable for a hunt, which is why the threshold is a property of the rule rather than
+  a constant. Severity follows what is being obfuscated, not the fact that something is.</p>
 </section>
 
 <section id="gates">
@@ -511,14 +542,16 @@
 <li><b>ADR 0002 — Fetch pinned public EVTX samples instead of vendoring them</b><br><span class='muted'>Samples are not vendored. Each fixture pins public EVTX by repo, commit, path and SHA-256, and they are fetched and hash-verified at test time.</span></li>
 <li><b>ADR 0003 — Evaluate rules over labelled JSON events with the pySigma SQLite backend</b><br><span class='muted'>Labelled events are evaluated through pySigma's SQLite backend rather than a second log platform. Zircolite was the obvious candidate and was rejected: it is not on PyPI, so it could not be locked. Hayabusa stays as an independent second engine and the two must agree.</span></li>
 <li><b>ADR 0004 — Reproducibility without Terraform</b><br><span class='muted'>No Terraform. Terraform with no infrastructure behind it is a prop; reproducibility here means a clean checkout produces an identical verified run, which locked dependencies and a checksum-pinned engine already deliver.</span></li>
-<li><b>ADR 0005 — Evidence tiers: how a cloud rule is proven when no capture exists</b><br><span class='muted'>Cloud rules carry a declared, weaker evidence tier. Nobody publishes captures of Entra ID telemetry — it is real people's tenant data — so those rules cannot be replayed against a recording. Instead their labelled scoring is mandatory and every field is validated against Microsoft's published table schema at compile time. The dashboard badges them differently rather than letting the distinction blur.</span></li></ul>
+<li><b>ADR 0005 — Evidence tiers: how a cloud rule is proven when no capture exists</b><br><span class='muted'>Cloud rules carry a declared, weaker evidence tier. Nobody publishes captures of Entra ID telemetry — it is real people's tenant data — so those rules cannot be replayed against a recording. Instead their labelled scoring is mandatory and every field is validated against Microsoft's published table schema at compile time. The dashboard badges them differently rather than letting the distinction blur.</span></li>
+<li><b>ADR 0006 — Severity follows the payload: a hunting tier and an alerting tier</b><br><span class='muted'>Obfuscation is split into two rules instead of one. Matching obfuscation primitives alone fires on two thirds of ordinary admin PowerShell (measured), so that rule is informational and used for hunting; a second rule requiring obfuscation plus an execution or download sink alerts at high, and its benign cases are the first rule's false alarms. Severity follows what is obfuscated, not that something is.</span></li>
+<li><b>ADR 0007 — Closing the corpus: what this project does not do next</b><br><span class='muted'>The corpus is closed at its current size. More cloud rules would repeat a solved pattern rather than prove anything new, and a Splunk container replaying the same pinned EVTX would restate gates that already pass — what a live SIEM would really add is production volume, which this project does not have. Both are declined in writing rather than left on an open TODO list.</span></li></ul>
   <h3>Other choices worth stating</h3>
   <ul class="spaced">
     <li><b>The third-party corpus is demoted, not deleted.</b> A pinned copy of the public SigmaHQ
     Windows corpus (2,399 rules, 100% convert rate) is run through the
-    same conversion pipeline and contributes 289 further techniques to the map — but
+    same conversion pipeline and contributes 288 further techniques to the map — but
     it is reported separately and held to none of the fixture or eval gates. Folding it into the
-    headline would turn 19 authored rules into a four-figure number that means nothing.
+    headline would turn 20 authored rules into a four-figure number that means nothing.
     The headline is deliberately the smaller, true number.</li>
     <li><b>Published artifacts are diffed, not trusted.</b> Every generated file is rebuilt in CI and
     compared to what is committed. There is no ratchet file and no manual metric anywhere: if a rule
@@ -542,7 +575,7 @@
       <li><b>The labelled events are synthetic.</b> They are written to be realistic look-alikes,
       but they are mine. They establish that a rule's logic discriminates; they cannot establish
       what its volume would be on a real estate.</li>
-      <li><b>Case sets are small.</b> 158 events across 19 rules. Enough to
+      <li><b>Case sets are small.</b> 172 events across 20 rules. Enough to
       catch a rule that matches an event ID and nothing else — not enough for a confidence
       interval.</li>
       <li><b>Some rules are irreducibly noisy, and stay.</b> Clearing the event log is one event
@@ -569,7 +602,7 @@
 <section id="repo">
   <h2><span class="n">11</span>Repo map</h2>
   <dl class="grid">
-    <dt><code>detections/</code></dt><dd>The 19 authored Sigma rules, split by telemetry:
+    <dt><code>detections/</code></dt><dd>The 20 authored Sigma rules, split by telemetry:
       <code>windows/</code> and <code>identity/entra/</code>. Everything is gated on these, though
       not every rule can be gated the same way — see the evidence tiers above.</dd>
     <dt><code>evals/</code></dt><dd>Labelled events and declared thresholds, one directory per rule,
@@ -627,6 +660,22 @@
     nothing, reported coverage it did not have, and had exactly one negative test case — which was
     for a different log channel and could never have failed. Most of the engineering since has been
     removing ways for the build to be green without being true.</dd>
+
+    <dt>Only 20 rules? SigmaHQ has thousands.</dt>
+    <dd>A pinned copy of SigmaHQ's Windows corpus is in this repository too, and it is reported
+    separately on purpose. The authored rules are the ones held to every gate: a pinned capture or
+    a mandatory case set, a declared threshold with a written justification, a bound query, an
+    ATT&amp;CK tag that resolves. 20 rules that each carry that evidence say more about how
+    someone works than a thousand copied ones. The corpus is deliberately the smaller, true
+    number.</dd>
+
+    <dt>Is this finished, or abandoned?</dt>
+    <dd>Finished, and the boundary is argued rather than implied — ADR 0007 names the two things
+    that were on the list and declines both: more cloud rules of a shape already proven four times
+    over, and a Splunk container replaying the same pinned captures the existing gates already
+    check. What a live SIEM would genuinely add is behaviour under production volume, which is not
+    available here, so shipping one would produce a screenshot rather than evidence. The gates keep
+    running; the corpus is closed.</dd>
   </dl>
 </section>
 

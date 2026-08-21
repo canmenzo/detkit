@@ -1,0 +1,22 @@
+# Pinned public EVTX samples for this rule's tests.
+# Fetched at test time (not vendored) — see docs/adr/0002.
+#
+# Same capture as the sibling hunting rule, and that is the point: of its 66
+# script blocks the sibling matches most, this rule matches the one that also
+# calls iex (event #44, `iex([CHar]73+[CHar]69+[CHar]88+...`). Real Invoke-
+# Obfuscation output, not an authored string — verify with
+# `detkit probe posh_ps_obfuscated_payload_execution --show ScriptBlockText`.
+samples:
+  - name: true_positive
+    expect: fire          # Invoke-Obfuscation "encoding" menu output (EID 4104)
+    repo: Yamato-Security/hayabusa-sample-evtx
+    commit: 0845333ecb4afcf64c55c6e10946383f168f308c
+    path: DeepBlueCLI/Powershell-Invoke-Obfuscation-encoding-menu.evtx
+    sha256: B1D7C3411053A4190C93657265679958228B4BDB97652984C1564A67FCFAB167
+
+  - name: negative_no_scriptblock
+    expect: silent        # 4688 process-exec sample: no ScriptBlockText -> must not fire
+    repo: Yamato-Security/hayabusa-sample-evtx
+    commit: 0845333ecb4afcf64c55c6e10946383f168f308c
+    path: EVTX-to-MITRE-Attack/TA0002-Execution/T1059.001-PowerShell/ID4688-Encoded PowerShell MSF payload via process execution.evtx
+    sha256: DC7340A1B68E172F39CE378044A304DF86539B43434D2CD6755F9CFDCE855479

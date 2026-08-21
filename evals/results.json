@@ -90,6 +90,24 @@
         "max_fp_rate": 0.45
       }
     },
+    "posh_ps_obfuscated_payload_execution": {
+      "tp": 5,
+      "fp": 1,
+      "fn": 0,
+      "tn": 8,
+      "precision": 0.8333,
+      "recall": 1.0,
+      "fp_rate": 0.1111,
+      "missed": [],
+      "false_alarms": [
+        "bootstrap_decodes_url_then_fetches"
+      ],
+      "thresholds": {
+        "min_precision": 0.8,
+        "min_recall": 1.0,
+        "max_fp_rate": 0.15
+      }
+    },
     "posh_ps_susp_encoded_powershell_scriptblock": {
       "tp": 4,
       "fp": 4,

@@ -11,16 +11,20 @@ description: >
   claimed these primitives are "rare in legitimate use"; measuring it showed the
   opposite — `-join` and `[Convert]::ToInt` appear throughout ordinary
   administrative scripting, and the rule fires on two thirds of the benign
-  PowerShell in its eval set. Use it to rank script blocks for review. Turning it
-  into an alert requires scoring several primitives together rather than matching
-  any one of them.
+  PowerShell in its eval set. Use it to rank script blocks for review.
+
+  The alerting tier is posh_ps_obfuscated_payload_execution, which requires one
+  of these primitives AND an execution or ingress sink in the same script block
+  (measured: FP rate 0.67 here, 0.11 there, on the same benign events). Severity
+  follows what is being obfuscated, not the fact that something is. Keep this
+  rule informational; do not "fix" it by tightening it into the other one.
 references:
   - https://attack.mitre.org/techniques/T1059/001/
   - https://attack.mitre.org/techniques/T1027/
   - https://github.com/danielbohannon/Invoke-Obfuscation
 author: Can Ozmen
 date: 2026-06-23
-modified: 2026-06-23
+modified: 2026-08-20
 tags:
   - attack.execution
   - attack.stealth

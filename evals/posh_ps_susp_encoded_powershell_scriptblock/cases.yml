@@ -13,8 +13,10 @@ thresholds:
     A token-frequency heuristic, not a detection. -join and [Convert]::ToInt are
     ordinary PowerShell, so two thirds of benign administrative script blocks
     fire. Demoted to informational and kept as a hunting query: useful for
-    ranking script blocks by suspiciousness, unusable as a page. Tightening it
-    means scoring multiple tokens together rather than matching any one of them.
+    ranking script blocks by suspiciousness, unusable as a page. The alerting
+    tier is posh_ps_obfuscated_payload_execution, whose benign half is this
+    rule's four false alarms — it scores 0.11 FP rate on them by requiring an
+    execution or ingress sink alongside the primitive.
 
 cases:
   - name: invoke_obfuscation_base64

@@ -27,6 +27,12 @@
       "enabled": true
     },
     {
+      "techniqueID": "T1027.010",
+      "score": 1,
+      "comment": "1 detection",
+      "enabled": true
+    },
+    {
       "techniqueID": "T1047",
       "score": 1,
       "comment": "1 detection",
@@ -40,8 +46,8 @@
     },
     {
       "techniqueID": "T1059.001",
-      "score": 2,
-      "comment": "2 detections",
+      "score": 3,
+      "comment": "3 detections",
       "enabled": true
     },
     {
@@ -70,8 +76,8 @@
     },
     {
       "techniqueID": "T1105",
-      "score": 1,
-      "comment": "1 detection",
+      "score": 2,
+      "comment": "2 detections",
       "enabled": true
     },
     {
@@ -136,7 +142,7 @@
       "#0b5cad"
     ],
     "minValue": 0,
-    "maxValue": 2
+    "maxValue": 3
   },
   "legendItems": []
 }

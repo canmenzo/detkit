@@ -83,6 +83,16 @@ ADR_SUMMARY: dict[str, str] = {
             "against a recording. Instead their labelled scoring is mandatory and every field is "
             "validated against Microsoft's published table schema at compile time. The dashboard "
             "badges them differently rather than letting the distinction blur.",
+    "0006": "Obfuscation is split into two rules instead of one. Matching obfuscation primitives "
+            "alone fires on two thirds of ordinary admin PowerShell (measured), so that rule is "
+            "informational and used for hunting; a second rule requiring obfuscation plus an "
+            "execution or download sink alerts at high, and its benign cases are the first rule's "
+            "false alarms. Severity follows what is obfuscated, not that something is.",
+    "0007": "The corpus is closed at its current size. More cloud rules would repeat a solved "
+            "pattern rather than prove anything new, and a Splunk container replaying the same "
+            "pinned EVTX would restate gates that already pass — what a live SIEM would really "
+            "add is production volume, which this project does not have. Both are declined in "
+            "writing rather than left on an open TODO list.",
 }
 
 
@@ -169,6 +179,51 @@ def _threshold_rows(results: dict[str, Any], justifications: dict[str, str]) -> 
     return "\n".join(rows)
 
 
+HUNT_STEM = "posh_ps_susp_encoded_powershell_scriptblock"
+ALERT_STEM = "posh_ps_obfuscated_payload_execution"
+
+
+def _tier_pair(results: dict[str, Any]) -> str:
+    """The hunting/alerting pair, with both measured FP rates filled in.
+
+    Written as a generated block rather than prose because the two numbers are
+    the whole argument: quoting them by hand would let the page keep claiming an
+    improvement the corpus no longer shows.
+    """
+    hunt, alert = results.get(HUNT_STEM), results.get(ALERT_STEM)
+    if not hunt or not alert:
+        return ""
+    return f"""
+  <h3>Some rules are hunting queries, not alerts</h3>
+  <div class="plain"><span class="tagp">In plain English</span>
+    <p>Attackers scramble their PowerShell so it does not read as an attack. The obvious rule is
+    "alert when a script looks scrambled" — and measuring it showed that <b>two thirds of ordinary
+    admin scripts look scrambled too</b>, because joining text together and converting numbers are
+    everyday operations.</p>
+    <p>Deleting the rule would be wrong: scrambling really is a signal. So it was demoted. It now
+    ranks script blocks for a human to look through — a <b>hunting query</b> — while a second rule
+    pages someone only when scrambling appears <i>together with</i> something that runs or downloads
+    the result. Same signal, two products, two severities.</p>
+  </div>
+  <table>
+    <tr><th>rule</th><th>asks</th><th>severity</th><th>FP rate</th></tr>
+    <tr><td><code>{html.escape(HUNT_STEM)}</code></td>
+        <td>which script blocks are worth a human's attention?</td>
+        <td>informational</td><td class="num bad">{_fmt(hunt['fp_rate'])}</td></tr>
+    <tr><td><code>{html.escape(ALERT_STEM)}</code></td>
+        <td>which ones should wake someone up?</td>
+        <td>high</td><td class="num">{_fmt(alert['fp_rate'])}</td></tr>
+  </table>
+  <p>The second rule's benign cases <b>are</b> the first rule's false alarms, so the pair is held
+  together by its own gate: if the alerting tier ever starts firing on <code>-join</code> building
+  a file path, CI fails. On the real Invoke-Obfuscation capture both rules see the same 66 script
+  blocks; the hunting tier flags most of them, the alerting tier flags the one that also calls
+  <code>iex</code>.</p>
+  <p class="muted">A false-positive rate of {_fmt(hunt['fp_rate'])} is a failure for an alert and
+  perfectly reasonable for a hunt, which is why the threshold is a property of the rule rather than
+  a constant. Severity follows what is being obfuscated, not the fact that something is.</p>"""
+
+
 def _gate_rows() -> str:
     rows = [
         f"<tr><td><code>{html.escape(label)}</code></td><td>{GATE_PROSE.get(label, '')}</td></tr>"
@@ -242,6 +297,7 @@ def render(data: dict[str, Any]) -> str:
         f"<li><b>{html.escape(title)}</b><br><span class='muted'>{summary}</span></li>"
         for _, title, summary in _adrs()
     )
+    tier_pair = _tier_pair(results)
 
     return f"""<!doctype html>
 <html lang="en">
@@ -656,6 +712,7 @@ def render(data: dict[str, Any]) -> str:
   </table>
   <p class="muted">Thresholds live in the case files, not in the Sigma rules, so the rules stay
   portable — a threshold is a property of this harness, not of the detection.</p>
+{tier_pair}
 </section>
 
 <section id="gates">
@@ -804,6 +861,22 @@ def render(data: dict[str, Any]) -> str:
     nothing, reported coverage it did not have, and had exactly one negative test case — which was
     for a different log channel and could never have failed. Most of the engineering since has been
     removing ways for the build to be green without being true.</dd>
+
+    <dt>Only {n_rules} rules? SigmaHQ has thousands.</dt>
+    <dd>A pinned copy of SigmaHQ's Windows corpus is in this repository too, and it is reported
+    separately on purpose. The authored rules are the ones held to every gate: a pinned capture or
+    a mandatory case set, a declared threshold with a written justification, a bound query, an
+    ATT&amp;CK tag that resolves. {n_rules} rules that each carry that evidence say more about how
+    someone works than a thousand copied ones. The corpus is deliberately the smaller, true
+    number.</dd>
+
+    <dt>Is this finished, or abandoned?</dt>
+    <dd>Finished, and the boundary is argued rather than implied — ADR 0007 names the two things
+    that were on the list and declines both: more cloud rules of a shape already proven four times
+    over, and a Splunk container replaying the same pinned captures the existing gates already
+    check. What a live SIEM would genuinely add is behaviour under production volume, which is not
+    available here, so shipping one would produce a screenshot rather than evidence. The gates keep
+    running; the corpus is closed.</dd>
   </dl>
 </section>
 

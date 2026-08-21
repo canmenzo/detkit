@@ -58,56 +58,63 @@ pinned in `.hayabusa-version` and read by CI — bump it there, nowhere else.
 **Do not run `uv sync` against the repo's existing pip-managed `.venv`** without
 meaning to; set `UV_PROJECT_ENVIRONMENT` to a scratch path to test the lock.
 
-## Status
-19 authored detections (15 Windows + 4 Entra ID). **125 tests.** Every rule is
-scored against labelled events (**158** of them) for precision/recall/FP rate,
+## Status — CLOSED (2026-08-20)
+20 authored detections (16 Windows + 4 Entra ID). **131 tests.** Every rule is
+scored against labelled events (**172** of them) for precision/recall/FP rate,
 with per-rule thresholds that gate CI. `sigma check --fail-on-issues -c
-sigma-validation.yml` passes at **0 issues**. All 15 Windows rules convert to
+sigma-validation.yml` passes at **0 issues**. All 16 Windows rules convert to
 source-bound Splunk searches, the process_creation subset also to Microsoft XDR
 KQL, and the 4 Entra rules to Azure Monitor KQL bound to SigninLogs/AuditLogs.
-Coverage: **20 authored techniques** across 9 tactics (headline), plus 289
+Coverage: **21 authored techniques** across 9 tactics (headline), plus 288
 vendored-only.
 
 **One command:** `uv sync --all-extras && uv run detkit ci` — installs the pinned
-Hayabusa, runs every gate in CI's order, ~20s.
+Hayabusa, runs every gate in CI's order, ~20s. (It ends by `git diff`-ing the
+generated artifacts, so it "fails" on an uncommitted change until you commit —
+that is the drift gate working, not a broken run.)
+
+**The project is finished.** Can closed it on 2026-08-20 to move his focus to
+threat hunting. Maintenance only from here: keep CI green, bump `.attack-version`
+and `.hayabusa-version` when upstream moves, fix what the gates catch. ADR 0007
+argues the scope boundary; do not reopen it by adding rules unprompted.
 
 ### Engagement history
-Six-phase "portfolio → production-grade" run (agreed 2026-08-14) is ✅ done:
+Six-phase "portfolio → production-grade" run (agreed 2026-08-14) is done:
 honest gates → Python foundation → eval harness → rule quality + CI gating →
 reproducible setup → README/dashboard. Then the site's How-it-works page +
-metric tooltips (2026-08-20), then the Entra ID tier (2026-08-20, 4337227).
+metric tooltips (2026-08-20), the Entra ID tier (4337227), and the closing pass:
+the hunting/alerting split, `detkit probe` for cloud rules, ADRs 0006 + 0007.
 
-### Next up — pick up here
-1. **Tier the 4104 obfuscation rule by what is being obfuscated.** This is Can's
-   own call, given 2026-08-20 in answer to the pending veto: *severity should
-   follow the payload, not the presence of obfuscation*. Keep
-   `posh_ps_susp_encoded_powershell_scriptblock` at `informational` (it fires on
-   two thirds of benign PowerShell — measured), and add a higher-severity
-   companion that requires obfuscation **plus** a payload indicator in the same
-   script block: `IEX`/`Invoke-Expression`, `DownloadString`/`DownloadFile`,
-   `FromBase64String`, `Start-Process`, `New-Object Net.WebClient`. Needs its own
-   eval case set whose benign half is the *existing* rule's false positives
-   (`-join`, `[Convert]::ToInt`, CSV formatting) — the whole point is that those
-   must not reach the new rule's severity.
-2. **More Entra rules, now that the tier exists** — MFA denied by user (fatigue),
-   risky sign-in with a legacy client, cross-tenant access grant, user removed
-   from a Conditional Access policy exclusion. Each is a case set + a rule; the
-   gates already handle them.
-3. **`detkit probe` does not work for cloud rules** — it fetches pinned EVTX.
-   Either teach it to run a rule over its case set, or say so in its help. Right
-   now it just fails on an Entra stem, which is a bad first experience.
-4. **Optional, bigger:** the "prove it in a real SIEM" phase Can did not pick —
-   Splunk in Docker, load the compiled searches, replay the pinned EVTX, capture
-   evidence that they fire. Turns "deployable" into "deployed".
-
-### Decisions Can has made — do not re-raise
+### Declined, in writing — do not propose these again
+- **More Entra rules** (MFA fatigue, risky sign-in, cross-tenant grant). The tier
+  and every gate already exist and already run on four rules of that exact shape.
+  More of them measure line count, not capability. ADR 0007.
+- **Splunk in Docker / "prove it in a real SIEM".** The conversion gate already
+  asserts source-bound queries and Hayabusa already asserts the logic fires on the
+  real capture; a container replaying the same EVTX restates both. What a live
+  SIEM would add is production volume, which does not exist here. ADR 0007.
 - **Branch protection: NO** (2026-08-20). Commit straight to main; CI is the gate.
-- **4104 obfuscation rule:** not vetoed — restructure it by payload, per item 1.
 
-**Rule-authoring loop:** `detkit probe <rule_stem>` fetches the pinned EVTX,
-runs the rule's compiled SQL against it, and prints matches — or, when a rule
-that should fire does not, the fields of events carrying the referenced fields.
-Use it **before** finalising rule logic. It replaced a scratchpad script plus a
+### The hunting/alerting split — the pattern to extend if work resumes
+ADR 0006. `posh_ps_susp_encoded_powershell_scriptblock` stays `informational` at
+FP rate 0.67 (a **hunting query**, ranks script blocks); the new
+`posh_ps_obfuscated_payload_execution` alerts at `high` and requires an
+obfuscation primitive **plus** an execution/ingress sink (IEX, DownloadString,
+Net.WebClient, Invoke-WebRequest, Start-BitsTransfer, Reflection.Assembly) —
+FP rate 0.11, precision 0.83. **Its benign cases ARE the hunting rule's false
+alarms**, so a regression in the pair fails CI. `Start-Process` was tried as a
+sink and removed: `-join` feeding Start-Process is ordinary packaging, and it is
+kept in the case set as a benign case so the removal cannot be silently undone.
+Both rules run on the same 66-script-block Invoke-Obfuscation capture; the alert
+tier matches the one block that also calls `iex`.
+
+**Rule-authoring loop:** `detkit probe <rule_stem>` probes a rule against the
+evidence its tier can produce. A Windows rule: fetch the pinned EVTX, run the
+compiled SQL, print matches — or, when a rule that should fire does not, the
+fields of events carrying the referenced fields. A cloud rule (no public capture
+exists): the same compiled query over its labelled case set, scored TP/FP/FN/TN
+against each case's label. The split follows `rules.is_evtx_testable`, not which
+files happen to exist. Use it **before** finalising rule logic. It replaced a scratchpad script plus a
 hand-downloaded evtx_dump; the `evtx` PyPI package is the same Rust parser and
 locks like any other dependency, so don't reintroduce the binary.
 
@@ -293,6 +300,15 @@ with a blanket `-x`.
   process_creation subset only — **Sentinel's SecurityEvent schema has no
   PreAuthType column**, so those rules cannot bind there without EventData
   parsing. That is a platform limit, documented in the README, not a TODO.
+
+## Defender/AMSI flags attacker strings on the COMMAND LINE (2026-08-20)
+Writing the obfuscated-PowerShell eval cases through a bash heredoc put strings
+like `IEX (...FromBase64String...)` and `New-Object Net.WebClient).DownloadString`
+into a command line; AMSI signature-matched it as ClickFix, Defender alerted, and
+the `bash.exe` spawn died with `EPERM: uv_spawn`. The same content written with
+an editor/file-write tool goes through fine. **Never pipe attacker sample strings
+through a shell command line** — write them to the file directly. Same family as
+the Hayabusa JSON-output quarantine above: AV on this box fights this repo.
 
 Note on logsource: Hayabusa maps `category: process_creation` to Sysmon EID 1, so
 4688 Security-log samples won't match those. Rules tested on Security-log samples

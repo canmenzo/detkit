@@ -1,0 +1,67 @@
+title: Obfuscated PowerShell Reaching an Execution or Download Sink
+id: 199b7877-fb8e-4201-98fb-38edf1c4e32d
+status: experimental
+description: >
+  The alerting half of a two-tier pair. Its sibling,
+  posh_ps_susp_encoded_powershell_scriptblock, matches obfuscation primitives on
+  their own; measured against labelled events it fires on two thirds of benign
+  administrative PowerShell, so it is informational and is used to rank script
+  blocks for review, not to page anyone.
+
+  This rule requires an obfuscation primitive AND an execution or ingress sink in
+  the same script block (EID 4104): IEX / Invoke-Expression, a Net.WebClient or
+  Invoke-WebRequest download, Start-BitsTransfer, or a reflective assembly load.
+  Severity follows what is being obfuscated, not the fact that something is —
+  reconstructing a string is administration, reconstructing a string and handing
+  it to the interpreter is an attack pattern.
+
+  Start-Process is deliberately NOT a sink here. `$args = @(...) -join ' ';
+  Start-Process setup.exe $args` is an ordinary installer idiom, and including it
+  reintroduced exactly the false positives this tier exists to keep out. The
+  benign half of this rule's case set is the sibling rule's measured false
+  positives, so a regression there fails CI here.
+references:
+  - https://attack.mitre.org/techniques/T1027/010/
+  - https://attack.mitre.org/techniques/T1059/001/
+  - https://attack.mitre.org/techniques/T1105/
+  - https://github.com/danielbohannon/Invoke-Obfuscation
+author: Can Ozmen
+date: 2026-08-20
+modified: 2026-08-20
+tags:
+  - attack.execution
+  - attack.stealth
+  - attack.command-and-control
+  - attack.t1059.001
+  - attack.t1027.010
+  - attack.t1105
+logsource:
+  product: windows
+  category: ps_script
+  definition: 'Requires PowerShell Script Block Logging (EID 4104)'
+detection:
+  selection_obfuscation:
+    ScriptBlockText|contains:
+      - 'FromBase64String'
+      - '-bxor'
+      - '[char['
+      - 'char]'
+      - '-join'
+      - '[Convert]::ToInt'
+  selection_sink:
+    ScriptBlockText|contains:
+      - 'IEX'
+      - 'Invoke-Expression'
+      - 'DownloadString'
+      - 'DownloadFile'
+      - 'DownloadData'
+      - 'Net.WebClient'
+      - 'Invoke-WebRequest'
+      - 'Start-BitsTransfer'
+      - 'Reflection.Assembly'
+  condition: selection_obfuscation and selection_sink
+falsepositives:
+  - Packaging and bootstrap scripts that decode a URL or a payload from base64
+    and then fetch it. One is in the eval set and it fires; baseline the script
+    paths that legitimately do this before alerting at high severity.
+level: high
