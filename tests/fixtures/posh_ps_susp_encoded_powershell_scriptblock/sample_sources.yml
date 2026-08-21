@@ -16,5 +16,8 @@ samples:
     path: EVTX-to-MITRE-Attack/TA0002-Execution/T1059.001-PowerShell/ID4688-Encoded PowerShell MSF payload via process execution.evtx
     sha256: DC7340A1B68E172F39CE378044A304DF86539B43434D2CD6755F9CFDCE855479
 
-# TODO: add a benign PowerShell ScriptBlock baseline (expect: silent) once a
-# clean public 4104 sample or a scrubbed lab capture is available.
+# There is no benign 4104 baseline here, and there will not be one: nobody
+# publishes a capture of ordinary PowerShell, because ordinary PowerShell is
+# whatever a particular organisation happens to run. The benign side of this rule
+# is measured in evals/ instead — where it scores an FP rate of 0.67, which is
+# what demoted it to a hunting query. See ADR 0006.
