@@ -19,13 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-This license covers the contents of this repository authored by Can Ozmen:
-the rules under detections/, the tooling under tools/ and tests/, and the
-documentation.
-
-It does NOT cover vendored/, which is a redistributed copy of the public
-SigmaHQ corpus under the Detection Rule License (DRL) 1.1. See
-vendored/LICENSE.Detection.Rules.md and vendored/SOURCE.txt.

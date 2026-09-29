@@ -1,6 +1,6 @@
 # 🛡️ Detection Engineering
 
-[![detection-ci](https://github.com/canmenzo/detection-engineering/actions/workflows/ci.yml/badge.svg)](https://github.com/canmenzo/detection-engineering/actions/workflows/ci.yml) [![dashboard](https://img.shields.io/badge/dashboard-live-2ea44f)](https://canmenzo.github.io/detection-engineering/) ![python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![detection-ci](https://github.com/canmenzo/detection-engineering/actions/workflows/ci.yml/badge.svg)](https://github.com/canmenzo/detection-engineering/actions/workflows/ci.yml) [![dashboard](https://img.shields.io/badge/dashboard-live-2ea44f)](https://canmenzo.github.io/detection-engineering/) ![python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white) [![license](https://img.shields.io/github/license/canmenzo/detection-engineering)](LICENSE)
 
 Detection-as-code with Sigma rules that are **measured**, not just written. Every rule is scored for precision, recall and false-positive rate against labelled events, tested against real adversary telemetry, and blocked from merging if it drops below a bar it declares for itself.
 
@@ -104,4 +104,4 @@ The corpus is closed at 20 rules and the repository is in maintenance: the gates
 
 ### 📄 License
 
-MIT for the rules, tooling, tests and docs authored here. `vendored/` is SigmaHQ's corpus under the Detection Rule License 1.1; see [`vendored/LICENSE.Detection.Rules.md`](vendored/LICENSE.Detection.Rules.md).
+MIT for the rules, tooling, tests and docs authored here. `vendored/` is SigmaHQ's corpus under the Detection Rule License 1.1; see [`vendored/LICENSE.Detection.Rules.md`](vendored/LICENSE.Detection.Rules.md). The split is spelled out in [`NOTICE`](NOTICE).

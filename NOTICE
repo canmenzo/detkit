@@ -1,0 +1,9 @@
+Licensing scope
+
+The MIT License in LICENSE covers the contents of this repository authored by
+Can Ozmen: the rules under detections/, the tooling under src/ and tests/, and
+the documentation.
+
+It does NOT cover vendored/, which is a redistributed copy of the public
+SigmaHQ corpus under the Detection Rule License (DRL) 1.1. See
+vendored/LICENSE.Detection.Rules.md and vendored/SOURCE.txt.
