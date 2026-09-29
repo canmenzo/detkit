@@ -35,7 +35,7 @@ from detkit.rules import conversion_only, load_corpus, sample_count
 from detkit.webui import PALETTE, nav
 
 SITE_ABOUT = SITE / "about.html"
-GH_BASE = "https://github.com/canmenzo/detection-engineering/blob/main/"
+GH_BASE = "https://github.com/canmenzo/detkit/blob/main/"
 
 # What each gate in `detkit ci` is actually for. Keyed by the step label in
 # pipeline.STEPS; a step added there without an entry here still renders, so the

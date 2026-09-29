@@ -151,6 +151,6 @@ def nav(active: str) -> str:
         + link("index.html", "index", "Coverage")
         + link("about.html", "about", "How it works")
         + '<span class="spacer"></span>'
-        + '<a href="https://github.com/canmenzo/detection-engineering">GitHub ↗</a>'
+        + '<a href="https://github.com/canmenzo/detkit">GitHub ↗</a>'
         + "</div></nav>"
     )

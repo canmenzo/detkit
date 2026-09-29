@@ -108,14 +108,14 @@
 </style>
 </head>
 <body>
-<nav class="top"><div><a href="index.html" class="on">Coverage</a><a href="about.html">How it works</a><span class="spacer"></span><a href="https://github.com/canmenzo/detection-engineering">GitHub ↗</a></div></nav>
+<nav class="top"><div><a href="index.html" class="on">Coverage</a><a href="about.html">How it works</a><span class="spacer"></span><a href="https://github.com/canmenzo/detkit">GitHub ↗</a></div></nav>
 <header>
   <h1>Detection Coverage</h1>
   <div class="sub">Detection-as-Code — every authored rule is version-controlled,
     ATT&amp;CK-mapped, tested against real adversary telemetry, and <b>scored for
     precision, recall and false-positive rate</b> against labelled events. Rules
     that miss the bar they declare fail the build.
-    <a href="https://github.com/canmenzo/detection-engineering/blob/main/README.md">View source on GitHub →</a></div>
+    <a href="https://github.com/canmenzo/detkit/blob/main/README.md">View source on GitHub →</a></div>
   <div class="stats">
     <div class="stat" tabindex="0" data-tip="&lt;b class=&#x27;h&#x27;&gt;Rules written in this repo&lt;/b&gt;&lt;p&gt;Sigma rules under &lt;code&gt;detections/&lt;/code&gt;. Every one must carry ATT&amp;amp;CK tags, an EVTX fixture proving it fires on real telemetry, and a labelled case set scoring its quality — &lt;code&gt;detkit validate&lt;/code&gt; fails the build otherwise.&lt;/p&gt;&lt;p class=&#x27;src&#x27;&gt;The pinned third-party SigmaHQ corpus is counted separately below and is deliberately held to none of those gates. Mixing the two would inflate this number by two orders of magnitude and mean nothing.&lt;/p&gt;"><b>20</b><span>authored detections</span></div>
     <div class="stat" tabindex="0" data-tip="&lt;b class=&#x27;h&#x27;&gt;Distinct ATT&amp;amp;CK techniques covered&lt;/b&gt;&lt;p&gt;Counted from the &lt;code&gt;tags:&lt;/code&gt; of every authored rule — one technique may be covered by several rules, and is counted once.&lt;/p&gt;&lt;p&gt;Tags are validated against ATT&amp;amp;CK &lt;b&gt;v19.2&lt;/b&gt;, pinned in &lt;code&gt;.attack-version&lt;/code&gt;. pySigma resolves the technique vocabulary from MITRE&#x27;s live feed, so without that pin the map would drift with no commit in this repo; the gate fails if the resolved release moves.&lt;/p&gt;"><b>21</b><span>ATT&amp;CK techniques authored</span></div>
@@ -302,7 +302,7 @@ function render(){
     return `
     <div class="card">
       <div class="row">
-        <h3><a href="https://github.com/canmenzo/detection-engineering/blob/main/${r.path}">${esc(r.title)}</a></h3>
+        <h3><a href="https://github.com/canmenzo/detkit/blob/main/${r.path}">${esc(r.title)}</a></h3>
         <span class="badge ${r.status}" tabindex="0" data-tipid="${r.stem}:status">${r.status}${r.samples?(' · '+r.samples+' sample'+(r.samples>1?'s':'')):''}</span>
       </div>
       <div class="lvl ${r.level}" tabindex="0" data-tipid="${r.stem}:level">${esc(r.level)} · ${esc(r.logsource)}</div>

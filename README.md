@@ -1,11 +1,11 @@
-# 🛡️ Detection Engineering
+# 🛡️ detkit
 
-[![detection-ci](https://github.com/canmenzo/detection-engineering/actions/workflows/ci.yml/badge.svg)](https://github.com/canmenzo/detection-engineering/actions/workflows/ci.yml) [![dashboard](https://img.shields.io/badge/dashboard-live-2ea44f)](https://canmenzo.github.io/detection-engineering/) ![python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white) [![license](https://img.shields.io/github/license/canmenzo/detection-engineering)](LICENSE)
+[![detection-ci](https://github.com/canmenzo/detkit/actions/workflows/ci.yml/badge.svg)](https://github.com/canmenzo/detkit/actions/workflows/ci.yml) [![dashboard](https://img.shields.io/badge/dashboard-live-2ea44f)](https://canmenzo.github.io/detkit/) ![python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white) [![license](https://img.shields.io/github/license/canmenzo/detkit)](LICENSE)
 
 Detection-as-code with Sigma rules that are **measured**, not just written. Every rule is scored for precision, recall and false-positive rate against labelled events, tested against real adversary telemetry, and blocked from merging if it drops below a bar it declares for itself.
 
-**[🔎 Live dashboard](https://canmenzo.github.io/detection-engineering/)**: every detection, its scores and its test status. Hover any number for how it was calculated.
-**[📖 How it works](https://canmenzo.github.io/detection-engineering/about.html)**: the full method, written for a reader with no security background as well as one with.
+**[🔎 Live dashboard](https://canmenzo.github.io/detkit/)**: every detection, its scores and its test status. Hover any number for how it was calculated.
+**[📖 How it works](https://canmenzo.github.io/detkit/about.html)**: the full method, written for a reader with no security background as well as one with.
 
 ![ATT&CK coverage](coverage/coverage.png)
 
@@ -97,7 +97,7 @@ The corpus is closed at 20 rules and the repository is in maintenance: the gates
 
 ### 📚 More
 
-- 📖 **[How it works](https://canmenzo.github.io/detection-engineering/about.html)**: the pipeline, both test layers, every metric and what it hides, all the CI gates, and the objections this invites.
+- 📖 **[How it works](https://canmenzo.github.io/detkit/about.html)**: the pipeline, both test layers, every metric and what it hides, all the CI gates, and the objections this invites.
 - 🔄 [`docs/detection_lifecycle.md`](docs/detection_lifecycle.md): hypothesis → rule → fixtures → tests → conversion → ATT&CK → ship.
 - 🏛️ [`docs/adr/`](docs/adr/): the architecture decisions, including the rejected options.
 - 🗺️ [`coverage/navigator_layer.json`](coverage/navigator_layer.json): loadable in the [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) ("Open Existing Layer" → "Upload from local").

@@ -1,5 +1,5 @@
 {
-  "name": "detection-engineering",
+  "name": "detkit",
   // Pinned to the Python CI runs on. The image carries git, which the
   // generated-artifact drift check needs.
   "image": "mcr.microsoft.com/devcontainers/python:3.11-bookworm",
