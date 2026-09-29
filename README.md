@@ -1,49 +1,35 @@
-# Detection Engineering — Detection-as-Code
+# 🛡️ Detection Engineering
 
-> Threat-detection rules that are **measured**, not just written. Every rule is
-> scored for precision, recall and false-positive rate against labelled events,
-> tested against real adversary telemetry, and blocked from merging if it drops
-> below a threshold it declares for itself.
+[![detection-ci](https://github.com/canmenzo/detection-engineering/actions/workflows/ci.yml/badge.svg)](https://github.com/canmenzo/detection-engineering/actions/workflows/ci.yml) [![dashboard](https://img.shields.io/badge/dashboard-live-2ea44f)](https://canmenzo.github.io/detection-engineering/) ![python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=white) [![license](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-**[🔎 Live dashboard →](https://canmenzo.github.io/detection-engineering/)** — every
-detection, its scores and its test status. Hover any number for how it was calculated.
-**[📖 How it works →](https://canmenzo.github.io/detection-engineering/about.html)** —
-the full method, written for a reader with no security background as well as one with.
+Detection-as-code with Sigma rules that are **measured**, not just written. Every rule is scored for precision, recall and false-positive rate against labelled events, tested against real adversary telemetry, and blocked from merging if it drops below a bar it declares for itself.
+
+**[🔎 Live dashboard](https://canmenzo.github.io/detection-engineering/)**: every detection, its scores and its test status. Hover any number for how it was calculated.
+**[📖 How it works](https://canmenzo.github.io/detection-engineering/about.html)**: the full method, written for a reader with no security background as well as one with.
 
 ![ATT&CK coverage](coverage/coverage.png)
 
-## In short
+### ✨ Features
+- 🎯 **20 Sigma rules**, each ATT&CK-mapped and scored against hand-labelled benign look-alikes: 16 Windows rules also proven to fire on a pinned public EVTX capture of the real attack, and 4 Entra ID rules on a declared, weaker evidence tier. Cloud telemetry has no public captures, so those are field-validated against Microsoft's published table schema at compile time instead ([ADR 0005](docs/adr/0005-evidence-tiers-for-cloud-telemetry.md)).
+- ⚖️ **Two independent engines** check every rule: Hayabusa over real EVTX, and a SQL evaluator over labelled events. They must agree; disagreement fails the build.
+- 🚧 **Every rule declares the score it must hit.** CI fails when one drops below its own bar, and a lowered bar is rejected unless it carries a written justification.
+- 🔁 **Every published number is generated**, then rebuilt in CI and diffed against what is committed, including the unflattering ones and including this file.
+- 🪓 **Noisy signal is split, not deleted.** PowerShell obfuscation on its own fires on two thirds of ordinary admin scripting (measured), so that rule is `informational` and used for hunting; a second rule alerts at `high` only when obfuscation meets an execution or download sink, at an FP rate of 0.11 on the first rule's own false alarms ([ADR 0006](docs/adr/0006-hunting-tier-and-alerting-tier.md)).
+- 🔌 **Deployable output**: rules compile to source-bound Splunk SPL, Microsoft XDR KQL, and Azure Monitor KQL for the Entra rules.
 
-- **20 Sigma rules**, each ATT&CK-mapped and scored against hand-labelled benign
-  look-alikes: 16 Windows rules also proven to fire on a pinned public EVTX
-  capture of the real attack, and 4 Entra ID rules on a declared, weaker evidence
-  tier — cloud telemetry has no public captures, so those are field-validated
-  against Microsoft's published table schema at compile time instead
-  ([ADR 0005](docs/adr/0005-evidence-tiers-for-cloud-telemetry.md)).
-- **Two independent engines** check every rule — Hayabusa over real EVTX, a SQL
-  evaluator over labelled events. They must agree; disagreement fails the build.
-- **Every rule declares the score it must hit.** CI fails when one drops below its
-  own bar, and a lowered bar is rejected unless it carries a written justification.
-- **Every published number is generated**, then rebuilt in CI and diffed against
-  what is committed — including the unflattering ones, and including this file.
-- **Noisy signal is split, not deleted.** Matching PowerShell obfuscation on its
-  own fires on two thirds of ordinary admin scripting (measured), so that rule is
-  `informational` and used for hunting; a second rule alerts at `high` only when
-  obfuscation meets an execution or download sink, at an FP rate of 0.11 on the
-  first rule's own false alarms
-  ([ADR 0006](docs/adr/0006-hunting-tier-and-alerting-tier.md)).
+### 🚀 Quick start
 
-One command reproduces all of it from a clean checkout:
+One command reproduces all of it from a clean checkout (needs [uv](https://docs.astral.sh/uv/)):
 
 ```bash
 uv sync --all-extras && uv run detkit ci      # ~20s, the same sequence CI runs
 ```
 
-## Detection quality
+A devcontainer is included if you'd rather not install anything locally.
 
-Read **FP rate** first: it is the share of benign events that alerted, and unlike
-precision it cannot be improved by writing more attack cases. Precision moves with
-the malicious-to-benign ratio of the case set, which is authored here, not observed.
+### 📊 Detection quality
+
+Read **FP rate** first: it is the share of benign events that alerted, and unlike precision it cannot be improved by writing more attack cases. Precision moves with the malicious-to-benign ratio of the case set, which is authored here, not observed.
 
 <!-- detkit:eval-table:start -->
 
@@ -76,45 +62,22 @@ the malicious-to-benign ratio of the case set, which is authored here, not obser
 
 Called out rather than buried:
 
-- **Two rules still alert on 100% of benign events.** `security_win_eventlog_cleared`
-  keeps that bar deliberately — a cleared log carries no evidence of *why*, so no
-  discriminator exists, and the argument for shipping it anyway is the base rate.
-  `security_win_local_user_created` cannot make that argument, so it is demoted to an
-  audit record. Both justifications live in their case files.
-- **Two rules that did have signal were fixed rather than excused.**
-  `security_win_service_installed` went from 0.43 precision / 1.00 FP rate to
-  **1.00 / 0.00**, and `security_win_scheduled_task_created` to **0.75 / 0.25**, by
-  keying on what the service or task actually executes.
-- **Measurement found a real evasion.** `powershell.exe` accepts `-e` as an
-  abbreviation of `-EncodedCommand`; the rule tested only the longer spellings.
-  Closing it took recall from 0.80 to 1.00 at the cost of one false positive in
-  seven — a trade the harness refused to accept until it was written down.
+- 🔴 **Two rules still alert on 100% of benign events.** `security_win_eventlog_cleared` keeps that bar deliberately: a cleared log carries no evidence of *why*, so no discriminator exists, and the argument for shipping it anyway is the base rate. `security_win_local_user_created` cannot make that argument, so it is demoted to an audit record. Both justifications live in their case files.
+- 🔧 **Two rules that did have signal were fixed rather than excused.** `security_win_service_installed` went from 0.43 precision / 1.00 FP rate to **1.00 / 0.00**, and `security_win_scheduled_task_created` to **0.75 / 0.25**, by keying on what the service or task actually executes.
+- 🕵️ **Measurement found a real evasion.** `powershell.exe` accepts `-e` as an abbreviation of `-EncodedCommand`; the rule tested only the longer spellings. Closing it took recall from 0.80 to 1.00 at the cost of one false positive in seven, a trade the harness refused to accept until it was written down.
 
-## Known limits
+### ⚠️ Known limits
 
-- **The benign events are authored, not captured.** They prove a rule's logic
-  discriminates; they say nothing about alert volume on a live estate.
-- **The Entra rules are not proven against a real tenant.** Their logic is
-  measured and their queries are schema-validated, but nothing here replays them
-  against captured telemetry, because none is published.
-- **Sentinel coverage is partial, and it is a platform limit.** Splunk gets all 16
-  Windows rules, source-bound; the Entra rules compile to Azure Monitor KQL bound
-  to `SigninLogs`/`AuditLogs`. Microsoft XDR gets the `process_creation` subset —
-  Sentinel's `SecurityEvent` table has no `PreAuthType` column, so the Kerberos
-  rules cannot bind there without per-rule `EventData` parsing.
-- **Nothing here provisions a SIEM.** Rules compile to deployable, source-bound
-  queries; running them in a real estate is out of scope. See
-  [ADR 0004](docs/adr/0004-no-terraform.md) on why there is no Terraform.
+- 🧪 **The benign events are authored, not captured.** They prove a rule's logic discriminates; they say nothing about alert volume on a live estate.
+- ☁️ **The Entra rules are not proven against a real tenant.** Their logic is measured and their queries are schema-validated, but nothing here replays them against captured telemetry, because none is published.
+- 🧩 **Sentinel coverage is partial, and it is a platform limit.** Splunk gets all 16 Windows rules, source-bound; the Entra rules compile to Azure Monitor KQL bound to `SigninLogs`/`AuditLogs`. Microsoft XDR gets the `process_creation` subset: Sentinel's `SecurityEvent` table has no `PreAuthType` column, so the Kerberos rules cannot bind there without per-rule `EventData` parsing.
+- 🏗️ **Nothing here provisions a SIEM.** Rules compile to deployable, source-bound queries; running them in a real estate is out of scope. See [ADR 0004](docs/adr/0004-no-terraform.md) on why there is no Terraform.
 
-## Two tiers, never conflated
+### 🗂️ Two tiers, never conflated
 
-`detections/` is my own work and carries every gate its telemetry can support. `vendored/` is a pinned,
-attributed copy of the public [SigmaHQ](https://github.com/SigmaHQ/sigma) Windows
-corpus (~2,400 rules, DRL 1.1) — **not my work**, held to none of those gates. It
-runs through the same conversion pipeline at scale and shades the coverage map
-blue; green cells are authored. The headline number is the green one.
+`detections/` is my own work and carries every gate its telemetry can support. `vendored/` is a pinned, attributed copy of the public [SigmaHQ](https://github.com/SigmaHQ/sigma) Windows corpus (~2,400 rules, DRL 1.1), **not my work** and held to none of those gates. It runs through the same conversion pipeline at scale and shades the coverage map blue; green cells are authored. The headline number is the green one.
 
-## Running individual steps
+### 🛠️ Development
 
 ```bash
 uv run detkit validate        # metadata + fixture + ATT&CK tag discipline
@@ -122,34 +85,23 @@ uv run detkit eval            # precision / recall / FP rate per rule
 uv run detkit convert         # compile to Splunk + XDR, check every query is bound
 uv run detkit probe <rule>    # run a rule against its evidence (EVTX, or cases for cloud rules)
 uv run detkit dashboard       # rebuild site/index.html + site/about.html
+uv run detkit readme          # rewrite the table above from evals/results.json
 uv run pytest -v              # unit + detection tests (fetches samples, runs Hayabusa)
 ```
 
-`detkit ci` installs the Hayabusa release pinned in `.hayabusa-version`, verified
-against its recorded SHA-256 — an unverified binary download is not a reproducible
-build. Locally, without Hayabusa, the detection tests skip so you can still work on
-the tooling; CI sets `DETKIT_REQUIRE_HAYABUSA=1`, which turns any skip into a
-failure. A detection suite that did not execute must never report green.
+`detkit ci` installs the Hayabusa release pinned in `.hayabusa-version`, verified against its recorded SHA-256, because an unverified binary download is not a reproducible build. Locally, without Hayabusa, the detection tests skip so you can still work on the tooling; CI sets `DETKIT_REQUIRE_HAYABUSA=1`, which turns any skip into a failure. A detection suite that did not execute must never report green.
 
-## Status — complete
+### 📌 Status: complete
 
-The corpus is closed at 20 rules and the repository is in maintenance: the gates
-keep running, the pinned ATT&CK release and Hayabusa version get bumped when they
-move, nothing new is planned. Two remaining ideas were declined in writing rather
-than left on an open list — more Entra rules would repeat a pattern already proven
-four times, and a Splunk container replaying the same pinned captures would restate
-gates that already pass, since what a live SIEM would really add is production
-volume this project does not have.
-[ADR 0007](docs/adr/0007-closing-the-corpus.md) makes both arguments.
+The corpus is closed at 20 rules and the repository is in maintenance: the gates keep running, the pinned ATT&CK release and Hayabusa version get bumped when they move, nothing new is planned. Two remaining ideas were declined in writing rather than left on an open list: more Entra rules would repeat a pattern already proven four times, and a Splunk container replaying the same pinned captures would restate gates that already pass, since what a live SIEM would really add is production volume this project does not have. [ADR 0007](docs/adr/0007-closing-the-corpus.md) makes both arguments.
 
-## More
+### 📚 More
 
-- **[How it works](https://canmenzo.github.io/detection-engineering/about.html)** —
-  the pipeline, both test layers, every metric and what it hides, all the CI gates,
-  and the objections this invites.
-- [`docs/detection_lifecycle.md`](docs/detection_lifecycle.md) — hypothesis → rule →
-  fixtures → tests → conversion → ATT&CK → ship.
-- [`docs/adr/`](docs/adr/) — the architecture decisions, including the rejected options.
-- [`coverage/navigator_layer.json`](coverage/navigator_layer.json) — loadable in the
-  [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) ("Open Existing
-  Layer" → "Upload from local").
+- 📖 **[How it works](https://canmenzo.github.io/detection-engineering/about.html)**: the pipeline, both test layers, every metric and what it hides, all the CI gates, and the objections this invites.
+- 🔄 [`docs/detection_lifecycle.md`](docs/detection_lifecycle.md): hypothesis → rule → fixtures → tests → conversion → ATT&CK → ship.
+- 🏛️ [`docs/adr/`](docs/adr/): the architecture decisions, including the rejected options.
+- 🗺️ [`coverage/navigator_layer.json`](coverage/navigator_layer.json): loadable in the [ATT&CK Navigator](https://mitre-attack.github.io/attack-navigator/) ("Open Existing Layer" → "Upload from local").
+
+### 📄 License
+
+MIT for the rules, tooling, tests and docs authored here. `vendored/` is SigmaHQ's corpus under the Detection Rule License 1.1; see [`vendored/LICENSE.Detection.Rules.md`](vendored/LICENSE.Detection.Rules.md).
