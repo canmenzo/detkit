@@ -29,7 +29,7 @@ from detkit.paths import (
 from detkit.rules import conversion_only, is_evtx_testable, load_corpus, sample_count
 from detkit.webui import PALETTE, TIP_CSS, TIP_JS, nav, tip_attr
 
-GH_BASE = "https://github.com/canmenzo/detection-engineering/blob/main/"
+GH_BASE = "https://github.com/canmenzo/detkit/blob/main/"
 
 
 def vendored_summary() -> dict[str, Any]:
