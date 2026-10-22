@@ -187,7 +187,7 @@ def render(rules: list[dict[str, Any]], vend: dict[str, Any]) -> str:
         for r in scored
     )
 
-    data_json = json.dumps(rules)
+    data_json = json.dumps(rules).replace("<", r"\u003c")
     chips = "".join(
         f'<button class="chip" data-tactic="{html.escape(t)}">{html.escape(t)} '
         f'<span>{tactic_counts[t]}</span></button>'

@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   UV_PYTHON: "3.11"
 
@@ -14,10 +17,10 @@ jobs:
     name: lint + types
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      # Pinned to an exact release: astral-sh publishes no moving `v10` tag, and
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # Pinned to a commit SHA: astral-sh publishes no moving `v10` tag, and
       # pinning exactly is what the rest of this repo does anyway.
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras
@@ -30,10 +33,10 @@ jobs:
     name: rule discipline
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
-      # Pinned to an exact release: astral-sh publishes no moving `v10` tag, and
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # Pinned to a commit SHA: astral-sh publishes no moving `v10` tag, and
       # pinning exactly is what the rest of this repo does anyway.
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras
@@ -48,10 +51,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [python, rules]
     steps:
-      - uses: actions/checkout@v5
-      # Pinned to an exact release: astral-sh publishes no moving `v10` tag, and
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # Pinned to a commit SHA: astral-sh publishes no moving `v10` tag, and
       # pinning exactly is what the rest of this repo does anyway.
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras
@@ -66,22 +69,22 @@ jobs:
     runs-on: ubuntu-latest
     needs: [python, rules]
     steps:
-      - uses: actions/checkout@v5
-      # Pinned to an exact release: astral-sh publishes no moving `v10` tag, and
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # Pinned to a commit SHA: astral-sh publishes no moving `v10` tag, and
       # pinning exactly is what the rest of this repo does anyway.
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras
       - name: cache pinned EVTX samples
         # Keyed on the manifests, so a re-pinned sample invalidates the cache and
         # an unchanged one stops hitting the network on every run.
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: tests/.sample_cache
           key: evtx-samples-${{ hashFiles('tests/fixtures/*/sample_sources.yml') }}
       - name: cache hayabusa release
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: hayabusa
           key: hayabusa-${{ hashFiles('.hayabusa-version') }}-linux
@@ -100,10 +103,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [python, rules]
     steps:
-      - uses: actions/checkout@v5
-      # Pinned to an exact release: astral-sh publishes no moving `v10` tag, and
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # Pinned to a commit SHA: astral-sh publishes no moving `v10` tag, and
       # pinning exactly is what the rest of this repo does anyway.
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras
@@ -132,10 +135,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [python, rules]
     steps:
-      - uses: actions/checkout@v5
-      # Pinned to an exact release: astral-sh publishes no moving `v10` tag, and
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # Pinned to a commit SHA: astral-sh publishes no moving `v10` tag, and
       # pinning exactly is what the rest of this repo does anyway.
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras
@@ -146,10 +149,10 @@ jobs:
     runs-on: ubuntu-latest
     needs: [python, rules, convert, test, eval, vendored]
     steps:
-      - uses: actions/checkout@v5
-      # Pinned to an exact release: astral-sh publishes no moving `v10` tag, and
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # Pinned to a commit SHA: astral-sh publishes no moving `v10` tag, and
       # pinning exactly is what the rest of this repo does anyway.
-      - uses: astral-sh/setup-uv@v10.0.1
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           enable-cache: true
       - run: uv sync --locked --all-extras
@@ -176,7 +179,7 @@ jobs:
             site/about.html \
             README.md \
           || { echo "::error::generated artifacts are stale — run the generators and commit"; exit 1; }
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage
           path: |
