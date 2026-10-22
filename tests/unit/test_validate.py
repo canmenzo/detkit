@@ -11,8 +11,8 @@ from detkit.rules import Rule, load_rule
 from detkit.validate import check_condition, has_technique_tag, validate_rule
 
 VOCAB = Vocabulary(
-    version="19.2",
-    reviewed="19.2",
+    version="20.0",
+    reviewed="20.0",
     techniques=frozenset({"T1059.001"}),
     tactics=frozenset({"execution"}),
 )

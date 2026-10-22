@@ -4,7 +4,7 @@
   "versions": {
     "navigator": "4.9.1",
     "layer": "4.5",
-    "attack": "19"
+    "attack": "20"
   },
   "domain": "enterprise-attack",
   "techniques": [

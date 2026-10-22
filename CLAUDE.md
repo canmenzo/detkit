@@ -37,7 +37,8 @@ against EVTX), driven by pytest.
 ## ATT&CK is a moving target — this bit matters
 pySigma resolves ATT&CK from MITRE's **live** STIX feed (cached in
 `~/.cache/pysigma/`), so the tag vocabulary changes with no commit here.
-`.attack-version` pins the release we validated against (**19.1**);
+`.attack-version` pins the release we validated against (**20.0**; v20 changed
+none of the 21 authored techniques or their tactics, so the bump needed no remaps);
 `validate_metadata.py` fails if pySigma resolves anything else, and checks every
 `attack.*` tag against it. To bump: update the file, re-run the gate, fix what
 the new release retired.

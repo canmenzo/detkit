@@ -13,10 +13,11 @@ from detkit.attack import (
     parse_tags,
     vocabulary,
 )
+from detkit.paths import ATTACK_VERSION_FILE
 
 VOCAB = Vocabulary(
-    version="19.2",
-    reviewed="19.2",
+    version="20.0",
+    reviewed="20.0",
     techniques=frozenset({"T1059.001", "T1027", "T1685", "T1685.005"}),
     tactics=frozenset({"execution", "stealth", "defense-impairment", "credential-access"}),
 )
@@ -87,6 +88,7 @@ def test_vocabulary_matches_the_repo_pin() -> None:
 
 
 def test_vocabulary_raises_on_major_drift(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("sigma.data.mitre_attack.mitre_attack_version", "20.0")
+    pinned_major = int(ATTACK_VERSION_FILE.read_text(encoding="utf-8").split(".")[0])
+    monkeypatch.setattr("sigma.data.mitre_attack.mitre_attack_version", f"{pinned_major + 1}.0")
     with pytest.raises(AttackDriftError, match="major version drift"):
         vocabulary()
